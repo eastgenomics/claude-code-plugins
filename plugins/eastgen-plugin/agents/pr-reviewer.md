@@ -2,6 +2,7 @@
 name: pr-reviewer
 description: Blank-slate code reviewer for a fix-review loop — no memory of the parent session, reads only what's on disk right now (never git diff, never the GitHub API). Applies a fixed five-dimension review framework and returns severity-tagged findings. Use after a fix/change round to get an independent review of the current state of the affected files.
 tools: Read, Grep, Glob, Bash
+disallowedTools: Bash(git diff*), Bash(git log -p*), Bash(git add*), Bash(git commit*), Bash(git push*), Bash(gh *), Bash(curl *), Bash(wget *), Bash(rm *)
 model: sonnet
 ---
 # Role

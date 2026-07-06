@@ -22,7 +22,7 @@ Entry points:
 | "respond to review comments" / "address PR feedback" | Step 3 — Apply external feedback |
 | "review this PR" / "/pr-workflow review" | Step 2 — Review-fix loop (review pass only) |
 
-Never proceed from one step to the next without explicit instruction from the user.
+Never proceed from one step to the next without explicit instruction from the user. Exception: a single trigger like "commit and raise a PR" authorizes the whole Step 1 → 2 → 2b chain in one go — the "no proceeding without instruction" rule is about not starting a *new* step (e.g. Step 3, or a fresh commit) on your own initiative after a chain completes, not about pausing mid-chain.
 
 ---
 
@@ -56,6 +56,8 @@ Run up to 10 rounds.
    **Pass settled facts.** The reviewer has no memory of previous rounds, so without a `Known facts (do not re-investigate)` block listing what's already verified or deliberately decided — e.g. `"Django test runner creates data/ if absent — CI proves this"` — it re-raises the same triaged findings every round.
 
 3. If clean → exit loop and proceed to Step 2b. Otherwise repeat.
+
+If still not clean after 10 rounds, stop and report the outstanding findings to the user instead of proceeding to Step 2b — never push or open a PR with unresolved 🔴/🟡 findings.
 
 **Step 2b — Push and open/update PR:**
 ```bash
