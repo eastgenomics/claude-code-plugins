@@ -1,0 +1,13 @@
+{
+  "$schema": "https://anthropic.com/claude-code/plugin.schema.json",
+  "name": "eastgen-plugin",
+  "version": "0.1.0",
+  "description": "East Gen team plugin bundling shared skills",
+  "author": {
+    "name": "woook",
+    "email": "jwa21@cam.ac.uk"
+  },
+  "skills": [
+    "./skills"
+  ]
+}

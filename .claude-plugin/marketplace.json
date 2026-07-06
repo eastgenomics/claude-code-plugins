@@ -1,0 +1,15 @@
+{
+  "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
+  "name": "claude-code-plugins",
+  "description": "East Genomics Claude Code plugins",
+  "owner": {
+    "name": "East Genomics"
+  },
+  "plugins": [
+    {
+      "name": "eastgen-plugin",
+      "description": "East Gen team plugin bundling shared skills",
+      "source": "./plugins/eastgen-plugin"
+    }
+  ]
+}
