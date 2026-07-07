@@ -1,6 +1,18 @@
 # Publishing to Confluence
 
-## Configuration
+## Prefer the bundled MCP server
+
+This plugin bundles the official Atlassian remote MCP server (Confluence + Jira Cloud, OAuth-authenticated per user — no shared credentials). Check for it first:
+
+```
+ToolSearch: query "confluence"
+```
+
+If Atlassian tools are available, use them directly for creating and updating pages instead of the curl workflow below — they handle auth, storage-format encoding, and page-ID/version lookups for you. On first use for a given user, a tool call may report the server needs authentication; direct them to run `/mcp` (interactive) or `claude mcp login atlassian` to complete their own one-time OAuth sign-in.
+
+The REST-via-curl workflow below is the fallback for environments without the MCP server connected (e.g. Server/Data Center instances the official server doesn't cover, or a session where the user prefers a static API token).
+
+## Configuration (curl fallback only)
 
 Source these from the environment — keep tokens out of chat entirely.
 

@@ -25,6 +25,43 @@ Every component below is a drop-in replacement for the equivalent HTML/CSS compo
 
 ---
 
+## Mermaid flowcharts
+
+Confluence has no native Mermaid renderer — a diagram only renders live if the target space has a third-party app for it installed (commonly "Mermaid Charts & Diagrams for Confluence" by weweave, or "Mermaid Macro for Confluence" by SoftwareTao). The macro name differs between apps and even between versions of the same app, so **discover the actual macro name in the target space rather than assuming one.**
+
+### Discover the macro name
+
+Find a page in the target space that already has a rendered diagram, then read its storage format:
+
+```bash
+curl -sf -u "$CONFLUENCE_EMAIL:$CONFLUENCE_API_TOKEN" \
+  "$CONFLUENCE_BASE_URL/wiki/rest/api/content/{PAGE_ID}?expand=body.storage" \
+  | jq -r '.body.storage.value' | grep -A3 -i 'ac:name="[^"]*mermaid[^"]*"'
+```
+
+Reuse the exact `ac:name` value and body shape this returns (usually `ac:plain-text-body` with the diagram source in `CDATA`) for every diagram macro on every page you create in this session — the source shape itself is stable, only the macro name and any required parameters vary by app.
+
+### If no example page exists
+
+Use a `code` macro (see Code block above) with `language` set to `mermaid` as a fallback, and tell the user plainly that it will render as plain text, not a live diagram, until a Mermaid app is installed in the space.
+
+### Generic shape once the macro name is known
+
+```xml
+<ac:structured-macro ac:name="{discovered-macro-name}">
+  <ac:plain-text-body><![CDATA[
+flowchart TD
+    A[Parse config] --> B{Valid?}
+    B -->|yes| C[Run pipeline]
+    B -->|no| D[Raise error]
+  ]]></ac:plain-text-body>
+</ac:structured-macro>
+```
+
+Use flowcharts for the same purposes the local `briefing` design system uses SVG diagrams: end-to-end pipelines, phase sequencing, and data-flow shape — most useful on Page 1 (high-level outline) and, for a non-trivial control-flow function, alongside its entry in Page 3.
+
+---
+
 ## Panels (callouts)
 
 Four fixed panel types, each with a fixed colour Confluence assigns — pick by meaning, not by desired colour:
