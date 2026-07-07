@@ -6,7 +6,7 @@ allowed-tools: Read, Write, Edit, Bash, Grep, Glob
 
 # confluence-code skill
 
-Produce a **linked set of Confluence pages** that explain a source file (or set of files) to a reader who is unfamiliar with both the codebase and the tech stack it uses — pages someone would actually read, not skim. This is the Confluence-native counterpart of a local HTML code-walkthrough: same four-part structure and content bar, different output medium and component library.
+Produce a **linked set of Confluence pages** that explain a source file (or set of files) to a reader who is unfamiliar with both the codebase and the tech stack it uses — pages someone would actually read, not skim.
 
 Read [assets/MACROS.md](assets/MACROS.md) (the Confluence storage-format component library) and [assets/PUBLISH.md](assets/PUBLISH.md) (how pages actually get created) before drafting or publishing anything.
 
