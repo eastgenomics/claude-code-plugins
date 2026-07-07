@@ -4,18 +4,18 @@ Claude Code plugin marketplace for East Genomics.
 
 ## Plugins
 
-- **eastgen-plugin** — bundles shared skills, starting with `specification` (generate a full design/build spec for a software project).
+- **eastgen-plugin** — bundles shared skills and agents:
+  - `specification` — generate a full design/build spec for a software project
+  - `pr-workflow` — commit/raise-PR, local review-fix loop, respond to PR feedback, post inline review comments
+  - `pr-reviewer` (agent) — blank-slate, read-only five-dimension code reviewer used by `pr-workflow`
+  - `confluence-code` — publish an annotated code walkthrough as a linked set of Confluence pages
+  - `mcpServers.atlassian` — the official Atlassian remote MCP server (Confluence + Jira Cloud), OAuth-authenticated per user
 
-## Adding this marketplace
+## Team setup
 
 Note: the marketplace is named `eastgenomics`, not `claude-code-plugins` — that name is reserved for official Anthropic marketplaces (`github.com/anthropics/*` only), even though this repo is called `claude-code-plugins`.
 
-```
-/plugin marketplace add eastgenomics/claude-code-plugins
-/plugin install eastgen-plugin@eastgenomics
-```
-
-Or via managed settings:
+Org admins should still add this to the Team's managed settings (Admin Settings > Claude Code > Managed settings), so the marketplace is registered and the plugin allowed org-wide:
 
 ```json
 {
@@ -28,4 +28,19 @@ Or via managed settings:
     "eastgen-plugin@eastgenomics": true
   }
 }
+```
+
+**Known limitation — one manual step per teammate on CLI/TUI:** managed-settings `enabledPlugins` auto-installs in the Desktop and web apps, but not in the Claude Code CLI ([anthropics/claude-code#45323](https://github.com/anthropics/claude-code/issues/45323), tracked upstream, not something fixable from our side). After managed settings register the marketplace, each CLI/TUI user still needs to run this once:
+
+```
+/plugin install eastgen-plugin@eastgenomics
+```
+
+If a teammate reports "the marketplace shows up but the plugin isn't loaded," this is the expected cause — point them at the command above rather than re-diagnosing the managed-settings config.
+
+Manual marketplace + install, without managed settings at all:
+
+```
+/plugin marketplace add eastgenomics/claude-code-plugins
+/plugin install eastgen-plugin@eastgenomics
 ```
