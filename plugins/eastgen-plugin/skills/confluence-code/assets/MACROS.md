@@ -31,15 +31,9 @@ Confluence has no native Mermaid renderer — a diagram only renders live if the
 
 ### Discover the macro name
 
-Find a page in the target space that already has a rendered diagram, then read its storage format:
+Find a page in the target space that already has a rendered diagram, then fetch its storage format with the bundled Confluence MCP tool (see PUBLISH.md) and read off the `ac:name` value used for the diagram macro.
 
-```bash
-curl -sf -u "$CONFLUENCE_EMAIL:$CONFLUENCE_API_TOKEN" \
-  "$CONFLUENCE_BASE_URL/wiki/rest/api/content/{PAGE_ID}?expand=body.storage" \
-  | jq -r '.body.storage.value' | grep -A3 -i 'ac:name="[^"]*mermaid[^"]*"'
-```
-
-Reuse the exact `ac:name` value and body shape this returns (usually `ac:plain-text-body` with the diagram source in `CDATA`) for every diagram macro on every page you create in this session — the source shape itself is stable, only the macro name and any required parameters vary by app.
+Reuse that exact `ac:name` value and body shape (usually `ac:plain-text-body` with the diagram source in `CDATA`) for every diagram macro on every page you create in this session — the source shape itself is stable, only the macro name and any required parameters vary by app.
 
 ### If no example page exists
 
