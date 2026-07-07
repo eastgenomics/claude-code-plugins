@@ -8,9 +8,11 @@ Claude Code plugin marketplace for East Genomics.
 
 ## Adding this marketplace
 
+Note: the marketplace is named `eastgenomics`, not `claude-code-plugins` — that name is reserved for official Anthropic marketplaces (`github.com/anthropics/*` only), even though this repo is called `claude-code-plugins`.
+
 ```
 /plugin marketplace add eastgenomics/claude-code-plugins
-/plugin install eastgen-plugin@claude-code-plugins
+/plugin install eastgen-plugin@eastgenomics
 ```
 
 Or via managed settings:
@@ -18,12 +20,12 @@ Or via managed settings:
 ```json
 {
   "extraKnownMarketplaces": {
-    "claude-code-plugins": {
+    "eastgenomics": {
       "source": { "source": "github", "repo": "eastgenomics/claude-code-plugins" }
     }
   },
   "enabledPlugins": {
-    "eastgen-plugin@claude-code-plugins": true
+    "eastgen-plugin@eastgenomics": true
   }
 }
 ```
