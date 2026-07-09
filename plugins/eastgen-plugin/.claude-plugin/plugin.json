@@ -1,7 +1,6 @@
 {
   "$schema": "https://anthropic.com/claude-code/plugin.schema.json",
   "name": "eastgen-plugin",
-  "version": "0.1.0",
   "description": "East Gen team plugin bundling shared skills and agents",
   "author": {
     "name": "woook",
