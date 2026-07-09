@@ -41,7 +41,7 @@ Don't rely on native `toc` or `children`-display macros for auto-built navigatio
 
 ## Mermaid flowcharts — verified, this org's real mechanism
 
-Confirmed live against `cuhbioinformatics.atlassian.net` (space `DV`) — this is not a guess. The vault renders Mermaid via a **Forge macro** ("Mermaid diagram" app). Each diagram is two elements: a code block holding the Mermaid source, immediately followed by the extension `<div>`. The macro reads the **Nth Mermaid code block in document order** (0-based `guestParams.index`) — so diagrams must be emitted in order, and the index must count only Mermaid code blocks, not all code blocks.
+Confirmed live against `cuhbioinformatics.atlassian.net` (space `DV`), including an actual write: created a test page, added this exact shape via `updateConfluencePage`, re-fetched, and the extension node survived intact. The vault renders Mermaid via a **Forge macro** ("Mermaid diagram" app). Each diagram is two elements: a code block holding the Mermaid source, immediately followed by the extension `<div>`. The macro reads the **Nth Mermaid code block in document order** (0-based `guestParams.index`) — so diagrams must be emitted in order, and the index must count only Mermaid code blocks, not all code blocks.
 
 ```html
 <details data-breakout="wide"><summary>mermaid</summary><pre><code>flowchart TD
@@ -64,6 +64,12 @@ Cloud ID (`3419b8d5-6218-492f-bff8-812d5d24cdc7`) and the workspace context ARI 
 - Confluence silently drops macros the site can't resolve — after writing, re-fetch the page (`contentFormat: "html"`) and confirm the extension `<div>` with `mermaid-diagram` in `data-extension-key` survived.
 - Keep Mermaid labels single-line (`<br/>` instead of literal newlines) — `subgraph`, `flowchart`, and edge labels (`-->|"text"|`) all render fine.
 
-## What's unverified
+## Verified live (2026-07-09, throwaway page in a personal space)
 
-Everything above except Mermaid is taken directly from the MCP tools' own schema documentation, not independently confirmed by a live write. Before trusting a write-heavy pattern (especially `updateConfluencePage`'s exact edit semantics) on a real page that matters, try it once against a throwaway/test page first.
+- `createConfluencePage` and `updateConfluencePage` with `contentFormat: "html"` correctly translate panels, status lozenges, expand sections, tables, and code blocks to native Confluence macros — confirmed by re-fetching and inspecting the round-tripped body.
+- `updateConfluencePage` needs **no version number** — it auto-increments internally. Don't fetch-then-increment; just call it.
+- `updateConfluencePage` is a full-body replace, as expected.
+- The Mermaid mechanism above survives a real create → update → re-fetch cycle.
+- **Gotcha:** a `<code class="language-bash">` block round-trips as `language-shell` — Confluence normalizes the language name. Don't assume the language string you send is the one you'll see back.
+
+Not yet tested: page-to-page linking with real IDs (the two-pass pattern), and editing an existing page's specific span without touching the rest (described in `update.md` but not exercised end to end). Verify these against a throwaway page too before relying on them for something that matters.
