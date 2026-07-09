@@ -41,7 +41,7 @@ Don't rely on native `toc` or `children`-display macros for auto-built navigatio
 
 ## Mermaid flowcharts — verified, this org's real mechanism
 
-Confirmed live against `cuhbioinformatics.atlassian.net` (space `DV`), including an actual write: created a test page, added this exact shape via `updateConfluencePage`, re-fetched, and the extension node survived intact. The vault renders Mermaid via a **Forge macro** ("Mermaid diagram" app). Each diagram is two elements: a code block holding the Mermaid source, immediately followed by the extension `<div>`. The macro reads the **Nth Mermaid code block in document order** (0-based `guestParams.index`) — so diagrams must be emitted in order, and the index must count only Mermaid code blocks, not all code blocks.
+Confirmed live against `cuhbioinformatics.atlassian.net` (space `DV`), including an actual write: created a test page, added this exact shape via `updateConfluencePage`, re-fetched, and the extension node survived intact. The vault renders Mermaid via a **Forge macro** ("Mermaid diagram" app). Each diagram is two elements: a code block holding the Mermaid source, immediately followed by the extension `<div>`. The macro reads the **Nth code block on the page, in document order** (0-based `guestParams.index`) — **counting every `<pre><code>` block on the page, not just ones intended for Mermaid.** A code block that has nothing to do with Mermaid still consumes an index slot if it appears earlier in the document. This was confirmed the hard way: a bash example block placed before a Mermaid diagram, with the diagram's `index` set to `0`, rendered the diagram widget pointed at the bash block instead — the fix was setting `index` to `1` (its true position counting all code blocks, not just Mermaid ones).
 
 ```html
 <details data-breakout="wide"><summary>mermaid</summary><pre><code>flowchart TD
@@ -56,7 +56,7 @@ Confirmed live against `cuhbioinformatics.atlassian.net` (space `DV`), including
 - `{PAGE_ID}` — **the page must already exist first** — this is a chicken-and-egg constraint like the page-links one above: create the page (with placeholder content or without its diagrams), then `updateConfluencePage` to add Mermaid diagrams once you know the page's own ID.
 - `{SPACE_ID}` / `{SPACE_KEY}` — from `getConfluenceSpaces`.
 - `{LOCAL_ID}` — any unique string per diagram (e.g. a short slug); reuse the same value for both the outer `data-local-id` and the inner `parameters.localId`/`extensionId` local id if adding one.
-- `index` — 0-based position among Mermaid code blocks only, in document order.
+- `index` — 0-based position counting **every** code block on the page in document order, Mermaid or not (see gotcha above) — not just the Mermaid ones.
 
 Cloud ID (`3419b8d5-6218-492f-bff8-812d5d24cdc7`) and the workspace context ARI are site-wide constants for `cuhbioinformatics` — stable across pages and spaces on this site, safe to hardcode.
 
@@ -69,7 +69,7 @@ Cloud ID (`3419b8d5-6218-492f-bff8-812d5d24cdc7`) and the workspace context ARI 
 - `createConfluencePage` and `updateConfluencePage` with `contentFormat: "html"` correctly translate panels, status lozenges, expand sections, tables, and code blocks to native Confluence macros — confirmed by re-fetching and inspecting the round-tripped body.
 - `updateConfluencePage` needs **no version number** — it auto-increments internally. Don't fetch-then-increment; just call it.
 - `updateConfluencePage` is a full-body replace, as expected.
-- The Mermaid mechanism above survives a real create → update → re-fetch cycle.
+- The Mermaid mechanism above survives a real create → update → re-fetch cycle, and — after correcting the `index` rule above based on an actual rendering failure — now visually renders the right diagram, confirmed by the person who built this test page.
 - **Gotcha:** a `<code class="language-bash">` block round-trips as `language-shell` — Confluence normalizes the language name. Don't assume the language string you send is the one you'll see back.
 
 Not yet tested: page-to-page linking with real IDs (the two-pass pattern), and editing an existing page's specific span without touching the rest (described in `update.md` but not exercised end to end). Verify these against a throwaway page too before relying on them for something that matters.
