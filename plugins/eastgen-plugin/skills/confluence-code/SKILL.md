@@ -8,7 +8,7 @@ allowed-tools: Read, Write, Edit, Bash, Grep, Glob
 
 Produce a **linked set of Confluence pages** that explain a source file (or set of files) to a reader who is unfamiliar with both the codebase and the tech stack it uses — pages someone would actually read, not skim.
 
-Read [assets/MACROS.md](assets/MACROS.md) (the Confluence storage-format component library) and [assets/PUBLISH.md](assets/PUBLISH.md) (how pages actually get created) before drafting or publishing anything.
+Read [../../shared/confluence/HTML_DIALECT.md](../../shared/confluence/HTML_DIALECT.md) (the Confluence HTML+ component reference — panels, status, expand, Mermaid, page links) and [assets/PUBLISH.md](assets/PUBLISH.md) (how pages actually get created) before drafting or publishing anything.
 
 ---
 
@@ -32,9 +32,7 @@ Read [assets/MACROS.md](assets/MACROS.md) (the Confluence storage-format compone
 └── 4 · Line-by-line reference
 ```
 
-The parent page is short: a one-paragraph orientation plus the Children Display macro (see MACROS.md).
-
-Each child page opens with a Series navigation panel (see MACROS.md) so a reader who lands on it directly, without the space sidebar, can still navigate the set.
+This dialect has no lazy title-based page link (see HTML_DIALECT.md) — every link needs a real page ID, so build this set in two passes: **create all five pages first** (parent short-and-empty is fine initially), collect their IDs, then **update each page** to add its links — the parent's list of children, and each child's series-navigation panel linking to its siblings and the parent.
 
 ---
 
@@ -45,12 +43,11 @@ Each child page opens with a Series navigation panel (see MACROS.md) so a reader
 Give the reader a complete orientation before they look at a single line of code.
 
 - **What this file does** — one clear paragraph: what problem it solves, what it is not.
-- **The N phases / stages** — a `status` lozenge per phase plus one sentence each, or a simple ordered list if a visual isn't warranted.
+- **The N phases / stages** — a status lozenge per phase plus one sentence each, or a simple ordered list if a visual isn't warranted.
 - **Data flow** — how data changes form as it moves through the file (e.g. raw file → parsed object → results list → output). A table.
 - **External dependencies** — every import listed with what it is actually used for in this file. Separate standard library from third-party. Note anything imported lazily (inside a function) and why.
 - **Function inventory** — a complete table: function name (inline code), line range, phase, one-line purpose.
 - **Naming conventions** — any underscore prefixes, type hints, constant naming patterns.
-- Insert the `toc` macro at the top of this page only (it's the entry point).
 
 ### Page 2 — Key concepts
 
@@ -58,8 +55,8 @@ Explain every concept a reader needs before the code makes sense. Assume the rea
 
 For each concept:
 - **Plain-English explanation** from first principles.
-- **Minimal code example** (`code` macro) showing the pattern in isolation.
-- **"In this file"** — a `note` panel explaining exactly where and why this concept appears.
+- **Minimal code example** showing the pattern in isolation.
+- **"In this file"** — a note panel explaining exactly where and why this concept appears.
 
 Candidates (pick those that actually apply — don't force irrelevant ones): language runtime behaviour, concurrency model, the specific framework/library idioms used, type system features, domain-specific concepts (algorithm logic, file formats, external systems), anything else in the file that would be unfamiliar.
 
@@ -67,20 +64,20 @@ Candidates (pick those that actually apply — don't force irrelevant ones): lan
 
 Cover every function in the file. Group by phase or logical section, one `##` heading per group. For each function, use the pattern:
 
-- **Heading** — function name as inline code, followed inline by a `status` lozenge for its phase.
+- **Heading** — function name as inline code, followed inline by a status lozenge for its phase.
 - **Purpose** — one sentence.
 - **Inputs / outputs** — a two-column table (parameter/type/description rows, then a return-value row).
-- **Key logic** — prose explaining the main steps, with a `code` macro for any non-obvious snippet.
-- **Design decisions** — a `tip` or `note` panel for any choice that deserves explanation (why this approach, not another).
+- **Key logic** — prose explaining the main steps, with a code snippet for any non-obvious line.
+- **Design decisions** — a tip or note panel for any choice that deserves explanation (why this approach, not another).
 
-Trivial one/two-line wrapper functions: list in the Page 1 inventory table and describe in one sentence here — no full write-up. Functions containing the core logic deserve the most space. Wrap any long or peripheral group in an `expand` macro so the page stays scannable.
+Trivial one/two-line wrapper functions: list in the Page 1 inventory table and describe in one sentence here — no full write-up. Functions containing the core logic deserve the most space. Wrap any long or peripheral group in an expand section so the page stays scannable.
 
 ### Page 4 — Line-by-line reference
 
 Dense annotations for the hardest functions — the ones where the code is correct but a reader would still struggle without extra context. Select 3–6 functions maximum across the whole file.
 
 For each selected function:
-- A `code` macro (with line numbers on) showing the complete function, or its key section if very long, with numbered inline comment markers (`# ①`, `# ②`, …) matching the source language's comment syntax.
+- A code block showing the complete function, or its key section if very long, with numbered inline comment markers (`# ①`, `# ②`, …) matching the source language's comment syntax.
 - Immediately below: a table, one row per marker — column 1 the numbered marker, column 2 the explanation.
 - Explanations answer "why is this written this way" or "what would go wrong if this line were different" — never just restate the code.
 - Note any gotchas, non-obvious side effects, or lines that look wrong but are intentionally written that way.
@@ -92,7 +89,7 @@ For each selected function:
 - **Show key snippets and the hard functions, not the whole file** — representative excerpts, not a full reproduction.
 - **Keep Page 4 selective.** 3–6 functions, chosen for difficulty, not coverage.
 - **Explain why, not just what.**
-- **Use the component library in MACROS.md** for every panel, code block, lozenge, and link — Confluence renders storage format through its own stylesheet, so there's no custom CSS layer to reach for.
+- **Use the component reference in HTML_DIALECT.md** for every panel, code block, lozenge, and link — Confluence renders this dialect through its own stylesheet, so there's no custom CSS layer to reach for.
 - **Validate, get sign-off, then publish — in that order, every time** (mechanics and rationale in PUBLISH.md).
 
 **Done when:** every planned page is drafted, passes the well-formedness check, and is either published with the user's explicit go-ahead or handed to them for review.
