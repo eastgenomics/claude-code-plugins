@@ -24,6 +24,8 @@ Entry points:
 
 Never proceed from one step to the next without explicit instruction from the user. Exception: a single trigger like "commit and raise a PR" authorizes the whole Step 1 → 2 → 2b chain in one go — the "no proceeding without instruction" rule is about not starting a *new* step (e.g. Step 3, or a fresh commit) on your own initiative after a chain completes, not about pausing mid-chain.
 
+Every PR body links its Jira issue — see the Jira link guardrail below.
+
 ---
 
 ## Step 1 — Branch & commit
@@ -60,11 +62,16 @@ Run up to 10 rounds.
 If still not clean after 10 rounds, stop and report the outstanding findings to the user instead of proceeding to Step 2b — never push or open a PR with unresolved 🔴/🟡 findings.
 
 **Step 2b — Push and open/update PR:**
+
+Resolve the Jira link (see Guardrails) before creating the PR.
+
 ```bash
 git push -u origin <branch-name>          # first time
 git push                                   # subsequent rounds
 gh pr create --title "<70 chars>" --body "## Summary
 - bullet
+
+Jira: <issue-url>
 
 ## Test plan
 - [ ] check"
@@ -75,7 +82,7 @@ Print the PR URL. Stop — wait for explicit instruction before proceeding.
 
 ## Step 3 — Apply external feedback
 
-Triggered when a reviewer has posted comments on the open PR. Fetch all comments, apply fixes locally, then **re-run the full review-fix loop (Step 2)** before pushing.
+Triggered when a reviewer has posted comments on the open PR. Before anything else, check the PR carries its Jira link (see Guardrails). Then fetch all comments, apply fixes locally, then **re-run the full review-fix loop (Step 2)** before pushing.
 
 Fetch comments:
 ```bash
@@ -127,3 +134,4 @@ Verify: `gh api repos/{owner}/{repo}/pulls/{pr_number}/reviews/{review_id}/comme
 - Loop: no `git push`, no GitHub API writes until the loop exits cleanly.
 - Inline comments: always `line` + `side` — never the legacy `position` field.
 - Review payload: always `--input -` via stdin — nested JSON arrays break with `--field`.
+- **Jira link, single source of truth for the whole skill** — every PR body carries a `Jira: <issue-url>` line. Resolve the issue key from the branch name if it follows `<KEY>-<n>-description` (e.g. `abc-123-fix-thing` → `ABC-123`); otherwise ask the user. Look it up via the bundled `atlassian` MCP server for the canonical URL — never guess the site domain. Check for it yourself in the main session — the `pr-reviewer` subagent is disk-only and never sees the PR body: `gh pr view <number> --json body --jq .body`. Check before `gh pr create` (Step 2b) and again as the first action of any "review this PR"/Step 3 entry, before the subagent loop starts; if missing, `gh pr edit <number> --body-file -` to add it before proceeding.
