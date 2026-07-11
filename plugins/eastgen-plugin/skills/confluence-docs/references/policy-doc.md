@@ -2,7 +2,7 @@
 
 Use this reference when the mode is `create policy-doc`. Follow these steps in order.
 
-Historical template ID (not used at runtime — see SKILL.md → Access): `4124934145`.
+Clone source: the [Manual / Policy live template page](https://cuhbioinformatics.atlassian.net/wiki/spaces/DV/pages/4745363752/Manual+Policy+doc+template+copy+this+page+s+content+to+create+a+new+policy-doc) (page ID `4745363752`) — see SKILL.md → Live template pages.
 
 Policy and manual documents live in the **Operational Guidance** section of the Documentation Vault. They cover processes, policies, and operational procedures (e.g. training and competency policies, run analysis manuals, operational guides) — distinct from Development & Testing and Controlled File documents.
 
@@ -27,13 +27,9 @@ Ask for anything not provided in the arguments:
 
 ---
 
-## Step 2: Build and Create the Page
+## Step 2: Clone the Live Template and Create the Page
 
-Resolve the parent page ID from its URL (see SKILL.md → Shared conventions), then build the complete HTML+ body per the Content Guide below and create the page in one call:
-
-```
-createConfluencePage(cloudId, spaceId, parentId, title, body, contentFormat: "html")
-```
+Resolve the parent page ID from its URL (see SKILL.md → Shared conventions), then follow the clone-and-create procedure in SKILL.md → Live template pages, using template page ID `4745363752` and the Content Guide below.
 
 Report the returned page's URL.
 

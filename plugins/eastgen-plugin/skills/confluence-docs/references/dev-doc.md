@@ -2,7 +2,7 @@
 
 Use this reference when the mode is `create dev-doc`. Follow these steps in order.
 
-Historical template ID (not used at runtime — see SKILL.md → Access): `3199041933`.
+Clone source: the [Development & Testing live template page](https://cuhbioinformatics.atlassian.net/wiki/spaces/DV/pages/4745560161/Development+Testing+doc+template+copy+this+page+s+content+to+create+a+new+dev-doc) (page ID `4745560161`) — see SKILL.md → Live template pages.
 
 ---
 
@@ -32,13 +32,9 @@ Use this content to populate the document. Don't ask the user to re-describe wor
 
 ---
 
-## Step 3: Build and Create the Page
+## Step 3: Clone the Live Template and Create the Page
 
-Resolve the parent page ID from its URL (see SKILL.md → Shared conventions), then build the complete HTML+ body per the Content Guide below and create the page in one call:
-
-```
-createConfluencePage(cloudId, spaceId, parentId, title, body, contentFormat: "html")
-```
+Resolve the parent page ID from its URL (see SKILL.md → Shared conventions), then follow the clone-and-create procedure in SKILL.md → Live template pages, using template page ID `4745560161` and the Content Guide below.
 
 Report the returned page's URL.
 
@@ -101,27 +97,9 @@ https://platform.dnanexus.com/panx/projects/{PROJECT_ID}/monitor/job/{JOB_ID}
 https://platform.dnanexus.com/panx/projects/{PROJECT_ID}/data/{FOLDER_PATH}
 ```
 
-#### HTML+ shapes for the Testing section
+#### Reusing the cloned Test Scenario blocks
 
-```html
-<!-- Provenance of Results expand -->
-<details data-breakout="wide"><summary>Provenance of Results</summary>
-  <p><strong>Link to job:</strong>
-    <a href="https://platform.dnanexus.com/panx/projects/PROJECT_ID/monitor/job/JOB_ID">job-JOB_ID</a>
-    (job-name, done, YYYY-MM-DD)
-  </p>
-  <p><strong>Commands used:</strong></p>
-  <pre><code class="language-bash">dx run app-XXXX \
-  -iinput=file-XXXX \
-  --destination "project-XXXX:/path/" \
-  --instance-type mem2_ssd1_v2_x4 -y
-# Job ID: job-XXXX</code></pre>
-</details>
-
-<!-- Test outcome: status lozenge + tip panel -->
-<p><strong>Test outcome: </strong><span data-type="status" data-color="green">PASS</span></p>
-<div data-type="panel-success"><p>One-line plain-English summary of the outcome.</p></div>
-```
+The cloned template already includes five ready-to-fill `Test Scenario Title` H2 blocks, each with the `Provenance of Results` expand, a status lozenge for Test Outcome, and a tip panel for the summary — reuse that exact shape for every test case rather than building it by hand. If the release has fewer than five tests, delete the extra blocks; if it has more, duplicate one of the existing blocks rather than inventing a new macro shape.
 
 ---
 
