@@ -1,0 +1,11 @@
+{
+  "extraKnownMarketplaces": {
+    "eastgenomics": {
+      "source": { "source": "github", "repo": "eastgenomics/claude-code-plugins" },
+      "autoUpdate": true
+    }
+  },
+  "enabledPlugins": {
+    "eastgen-plugin@eastgenomics": true
+  }
+}

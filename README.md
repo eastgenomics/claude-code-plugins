@@ -17,21 +17,7 @@ Claude Code plugin marketplace for East Genomics.
 
 Note: the marketplace is named `eastgenomics`, not `claude-code-plugins` — that name is reserved for official Anthropic marketplaces (`github.com/anthropics/*` only), even though this repo is called `claude-code-plugins`.
 
-Org admins should still add this to the Team's managed settings (Admin Settings > Claude Code > Managed settings), so the marketplace is registered and the plugin allowed org-wide:
-
-```json
-{
-  "extraKnownMarketplaces": {
-    "eastgenomics": {
-      "source": { "source": "github", "repo": "eastgenomics/claude-code-plugins" },
-      "autoUpdate": true
-    }
-  },
-  "enabledPlugins": {
-    "eastgen-plugin@eastgenomics": true
-  }
-}
-```
+Org admins should still add this to the Team's managed settings (Admin Settings > Claude Code > Managed settings), so the marketplace is registered and the plugin allowed org-wide. Paste the contents of [`team-managed-settings.json`](team-managed-settings.json) into that field — kept as a real file here (not just inline below) so it's copy-pasteable without transcribing it out of prose, and so it can't silently drift out of sync with a duplicate inline copy.
 
 `autoUpdate` is opt-in and off by default for any marketplace you add yourself — without it, teammates only pick up new commits by running `/plugin marketplace update eastgenomics` manually.
 
