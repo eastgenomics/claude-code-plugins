@@ -10,6 +10,7 @@ Claude Code plugin marketplace for East Genomics.
   - `pr-reviewer` (agent) — blank-slate, read-only five-dimension code reviewer used by `pr-workflow`
   - `confluence-code` — publish an annotated code walkthrough as a linked set of Confluence pages
   - `confluence-docs` — create/update controlled documentation pages in the CUH Bioinformatics Documentation Vault
+  - `dnanexus` — build/deploy DNAnexus apps and applets, manage data with `dx`/dxpy, run and monitor jobs, navigate the Jira/GitHub/Confluence release process
   - `shared/confluence/HTML_DIALECT.md` — the Confluence HTML+ component reference both confluence skills use
   - `mcpServers.atlassian` — the official Atlassian remote MCP server (Confluence + Jira Cloud), OAuth-authenticated per user
 
