@@ -49,7 +49,7 @@ There is no runtime path resolution needed — files are already on the filesyst
 
 ## `src/code.sh` — The Bash Entry Point
 
-DNAnexus calls the `main()` function in `code.sh`. Input variables are available as Bash variables matching the `inputSpec` names.
+DNAnexus calls the `main()` function in `code.sh`. Input variables are available as Bash variables matching the `inputSpec` names. Put all executable logic inside `main()` and do not call it explicitly — DNAnexus owns the entry-point lifecycle, and top-level shell code can yield misleading lifecycle/output behaviour.
 
 ### Full pattern
 
@@ -69,8 +69,12 @@ main() {
     find ~/in/vcfs -type f -name "*" -print0 | xargs -0 -I {} mv {} ~/vcfs
 
     mark-section "Installing packages"
-    # Install bundled .whl files offline — no network required
-    sudo -H python3 -m pip install --no-index --no-deps packages/*
+    # Install bundled .whl files in an isolated venv — no network required.
+    # On Ubuntu 24.04 workers a plain/sudo pip install can fail under PEP 668;
+    # a venv sidesteps the OS-managed environment. See Common Gotchas in SKILL.md.
+    python3 -m venv /tmp/myapp-venv
+    /tmp/myapp-venv/bin/pip install --no-index --no-deps packages/*
+    export PATH="/tmp/myapp-venv/bin:$PATH"
 
     mark-section "Building arguments"
     # Build argument string for the Python CLI
@@ -89,18 +93,21 @@ main() {
     fi
 
     mark-section "Uploading outputs"
-    # Upload output, capturing the resulting file ID with --brief
-    output_file=$(dx upload result.xlsx --brief)
+    # Upload to the worker workspace, wait until the upload finalises, then
+    # declare the file in the job output contract. --wait matters when the
+    # returned ID is a declared output or consumed by a downstream/child job:
+    # it confirms finalisation before the ID is exposed.
+    output_file=$(dx upload result.xlsx --wait --brief)
     dx-jobutil-add-output output_file "$output_file" --class=file
 
     # Upload with structured metadata (queryable via dx describe)
     JSON_DETAILS=$(cat details.json)
-    output_file=$(dx upload result.xlsx --brief --details "$JSON_DETAILS")
+    output_file=$(dx upload result.xlsx --wait --brief --details "$JSON_DETAILS")
     dx-jobutil-add-output output_file "$output_file" --class=file
 
     # Upload multiple files as an array output
     for file in *.vcf.gz; do
-        id=$(dx upload "${file}" --brief)
+        id=$(dx upload "${file}" --wait --brief)
         dx-jobutil-add-output tmp_vcfs "$id" --class=array:file
     done
 }
@@ -113,8 +120,8 @@ main() {
 | `dx-download-all-inputs --parallel` | Downloads all inputSpec files to `~/in/<param>/` |
 | `dx-upload-all-outputs --parallel` | Uploads everything under `~/out/<param>/` and populates `job_output.json` |
 | `dx-jobutil-add-output <name> <id> --class=<type>` | Sets a job output |
-| `dx upload <file> --brief` | Uploads a file, prints only the file ID |
-| `dx upload <file> --brief --details '<json>'` | Upload with structured metadata |
+| `dx upload <file> --wait --brief` | Finalises a workspace upload and prints only its file ID |
+| `dx upload <file> --wait --brief --details '<json>'` | Finalises an upload with structured metadata |
 | `mark-section "label"` | Prints a formatted section header to the job log |
 | `mark-success` | Marks the job as successfully completed |
 
@@ -129,6 +136,13 @@ For a real app/applet (this does **not** apply to `app-swiss-army-knife` — see
 | `$<field>_prefix` | Filename without its final extension, e.g. `sample.vcf` |
 
 For `array:file` inputs, files land in numbered subfolders (`~/in/<field>/0/`, `~/in/<field>/1/`, …, zero-padded so glob ordering matches input order) — there is no single `$<field>_path` in that case; enumerate with `find`/`ls` as shown below.
+
+### Declared-output contract and downstream consumption
+
+- Every field passed to `dx-jobutil-add-output` must exist in `dxapp.json` `outputSpec` with the exact declared class (`file`, `array:file`, …). DNAnexus rejects undeclared output fields. Keep internal hand-off files internal unless they are deliberately part of the app contract.
+- A parent/orchestrator must wait until the child job is terminal `done`, then read the required link from the child's **declared output**. Do not use a transient upload ID as an immediate cross-job transport mechanism.
+- Use `--wait` for uploads whose returned ID is declared as output or consumed downstream — it confirms finalisation before the ID is exposed.
+- Do not assume a worker token can write to an arbitrary project-qualified destination. Prefer a workspace upload plus `dx-jobutil-add-output`, or write under `~/out/<outputSpec field>/` and use `dx-upload-all-outputs`.
 
 ### `dx-upload-all-outputs` convention (counterpart)
 
@@ -192,12 +206,14 @@ Pre-download `.whl` files compatible with the execution environment and place th
 - Ubuntu **24.04** (current standard): Python 3.12, `cp312`, `manylinux_2_39_x86_64`
 - Ubuntu **20.04** (legacy apps only): Python 3.8, `cp38`, `manylinux2014_x86_64`
 
-Install in `code.sh`:
+Install in `code.sh` into an isolated environment:
 ```bash
-sudo -H python3 -m pip install --no-index --no-deps packages/*
+python3 -m venv /tmp/myapp-venv
+/tmp/myapp-venv/bin/pip install --no-index --no-deps packages/*
+export PATH="/tmp/myapp-venv/bin:$PATH"
 ```
 
-`--no-index` prevents pip from contacting PyPI. `--no-deps` prevents pip from trying to resolve dependencies at install time (all deps must themselves be present as `.whl` files).
+`--no-index` prevents pip from contacting PyPI. `--no-deps` prevents pip from trying to resolve dependencies at install time (all deps must themselves be present as `.whl` files). Ubuntu 24.04 manages its system Python under PEP 668, so install into a virtual environment rather than the worker's system Python (a `sudo pip install` can fail for packages that overlap OS-managed ones).
 
 To find the right wheel files for a package:
 ```bash
@@ -237,6 +253,10 @@ dx publish eggd_myapp/1.0.0
 ```
 
 The build process bundles `src/`, `resources/`, and `dxapp.json`, then uploads them to the platform.
+
+### Dynamic child apps
+
+When an app dynamically invokes another executable with `dx run`, test that invocation from the **worker identity**, not your interactive one. A developer can have access to a private app that the parent worker token does not. If worker execution needs a published child app, use the exact reviewed/published version and record its executable ID/version in orchestration provenance. This is a DNAnexus access behaviour, separate from the org policy that a production release must be an approved published app.
 
 ## Testing
 

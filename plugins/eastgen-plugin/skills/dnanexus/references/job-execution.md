@@ -2,7 +2,7 @@
 
 ## Overview
 
-A job is created whenever an app or applet runs. It executes on an isolated Linux VM (Ubuntu 20.04) with access to the DNAnexus API, the job's project, and any assets declared in `assetDepends`. Jobs are monitored via the web UI or `dx watch`.
+A job is created whenever an app or applet runs. It executes on an isolated Linux VM with access to the DNAnexus API, the job's project, and any assets declared in `assetDepends`. New org apps target Ubuntu 24.04 (Python 3.12) — do not assume a worker release from this general description; check the app's `runSpec.release`. Jobs are monitored via the web UI or `dx watch`.
 
 ## Running Jobs from the CLI
 
@@ -82,7 +82,10 @@ print(f"Output: {desc.get('output', {})}")
 
 ```python
 job.wait_on_done()
-output = job.describe()["output"]
+desc = job.describe()
+if desc["state"] != "done":
+    raise RuntimeError(f"Job did not complete: {desc['state']}")
+output = desc["output"]
 
 # For a file output
 output_file_id = output["xlsx_report"]["$dnanexus_link"]
@@ -91,6 +94,8 @@ dxpy.download_dxfile(output_file_id, "result.xlsx")
 # Get output reference for chaining (before job completes)
 output_ref = job.get_output_ref("xlsx_report")
 ```
+
+**Polling rule:** while a job is `runnable` or `running`, `describe` can legitimately return `"output": null` — treat that only as an empty nonterminal value, not a failure. Once the job is `done`, require the expected declared outputs and validate their links/classes before consuming them. For parent/child orchestration, consume a file through the completed child's declared output contract; do not assume a worker upload is project-resolvable before the child finalises it.
 
 ## Chaining Jobs
 
@@ -244,8 +249,14 @@ job = dxpy.DXApplet("applet-xxxx").run(
 
 ## Debugging Failed Jobs
 
-1. `dx watch job-xxxx --get-streams` — view full stdout/stderr
-2. Check `mark-section` output to identify which stage failed
-3. `dx describe job-xxxx` — check `failureMessage`
-4. For resource issues (OOM, disk full), increase instance type in `regionalOptions`
-5. For package issues, check that `.whl` files match Ubuntu 20.04 / Python 3.8
+A wrapper-reported exit code is a useful summary, not proof of root cause. After **every** failed job:
+
+1. `dx watch job-xxxx --get-streams` — read the complete available worker stdout/stderr, not just the tail.
+2. Check `mark-section` output to identify the first application stage that failed.
+3. `dx describe job-xxxx --json` — inspect `state`, `failureReason`/`failureMessage`, declared outputs, and inputs.
+4. Inspect parent/child jobs or workflow-analysis metadata. Distinguish the **first causal failure** from children that were terminated only because their parent failed or a dependency became unsatisfiable.
+5. Record a sanitised causal diagnosis before changing code or resubmitting.
+
+Treat `Exception ignored in: <function DXFile.__del__ ...>` as a log item requiring assessment, not automatically as the root cause — establish whether it occurred before the app entry point, alongside the first command failure, or during cleanup.
+
+For resource issues (OOM, disk full), adjust `regionalOptions` deliberately. For package issues, check that bundled wheels match the configured worker release and Python version (new org apps: Ubuntu 24.04 / Python 3.12; legacy apps: 20.04 / 3.8).

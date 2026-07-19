@@ -4,6 +4,34 @@
 
 Inside a DNAnexus app (`code.sh`), data operations are done with `dx` CLI commands and platform-provided Bash helpers. For automation scripts running outside of apps, the dxpy Python SDK is used. This page covers both, with CLI patterns first as they are more relevant to app development.
 
+## Canonical file references
+
+A file ID is globally unique, but the same underlying file can be present in multiple projects, so a bare `file-xxxx` can resolve in an unintended project context. When supplied a bare file ID, locate every project reference before using it:
+
+```bash
+dx api file-xxxx listProjects
+```
+
+Treat the project reported with `ADMINISTER` permission as the canonical source. Record and pass the object as `project-xxxx:file-xxxx` to `dx describe`, `dx download`, `dx run`, and SDK calls instead of relying on a bare ID (see the fuller treatment in SKILL.md).
+
+## Archival state
+
+Archived files cannot be downloaded and jobs using them fail with `InvalidState` / 422. Check state before using a file that may be archived:
+
+```bash
+dx describe "project-xxxx:file-xxxx" --json | \
+    python3 -c "import sys,json; print(json.load(sys.stdin).get('archivalState','?'))"
+# live | archival (unarchiving in progress) | archived
+```
+
+In a project you administer, request unarchiving with:
+
+```bash
+dx api project-xxxx unarchive '{"files": ["file-aaaa", "file-bbbb"]}'
+```
+
+If you do not administer the source project, clone the file into an administered project first (`dx cp source:file-xxxx dest:/folder/`), then unarchive the clone. Do not submit work until the required file is `live`.
+
 ## Inside an App (Bash CLI)
 
 ### Downloading inputs: `dx-download-all-inputs`
@@ -37,19 +65,19 @@ python3 myapp/myapp.py --m_codes in/m_codes/*
 ### Uploading outputs: `dx upload`
 
 ```bash
-# Upload a file, get back its ID
-output_id=$(dx upload result.xlsx --brief)
+# Upload to the worker workspace, wait for finalisation, then get the ID
+output_id=$(dx upload result.xlsx --wait --brief)
 
 # Upload with structured JSON metadata (queryable via dx describe)
 JSON_DETAILS='{"included": 42, "excluded": 105, "clinical_indication": "R208"}'
-output_id=$(dx upload result.xlsx --brief --details "$JSON_DETAILS")
+output_id=$(dx upload result.xlsx --wait --brief --details "$JSON_DETAILS")
 
 # Upload from a variable containing JSON
 JSON_DETAILS=$(cat details.json)
-output_id=$(dx upload result.xlsx --brief --details "$JSON_DETAILS")
+output_id=$(dx upload result.xlsx --wait --brief --details "$JSON_DETAILS")
 ```
 
-`--brief` prints only the file ID (`file-xxxx`) — required when capturing the ID in a variable.
+`--brief` prints only the file ID (`file-xxxx`) — required when capturing the ID in a variable. Add `--wait` when the returned ID is declared as a job output or immediately consumed downstream: it confirms upload finalisation before the ID is exposed. Do not assume the worker token can write to an arbitrary project-qualified destination; the portable declared-output route is a workspace upload plus `dx-jobutil-add-output`.
 
 ### Setting job outputs: `dx-jobutil-add-output`
 
@@ -57,12 +85,12 @@ After uploading, register the file as a job output matching an `outputSpec` entr
 
 ```bash
 # Single file output
-output_id=$(dx upload result.xlsx --brief)
+output_id=$(dx upload result.xlsx --wait --brief)
 dx-jobutil-add-output xlsx_report "$output_id" --class=file
 
 # Array file output (call once per file)
 for file in *.vcf.gz; do
-    id=$(dx upload "${file}" --brief)
+    id=$(dx upload "${file}" --wait --brief)
     dx-jobutil-add-output tmp_vcfs "$id" --class=array:file
 done
 ```
@@ -276,7 +304,7 @@ DNAnexus files support a `details` field — structured JSON attached to the fil
 ```bash
 # In code.sh — attach details at upload time
 JSON_DETAILS=$(cat details.json)
-output_id=$(dx upload report.xlsx --brief --details "$JSON_DETAILS")
+output_id=$(dx upload report.xlsx --wait --brief --details "$JSON_DETAILS")
 ```
 
 ```python

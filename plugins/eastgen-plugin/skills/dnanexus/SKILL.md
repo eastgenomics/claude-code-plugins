@@ -23,19 +23,19 @@ DNAnexus is a cloud platform for biomedical data analysis running on AWS `eu-cen
 
 ## Quick Task Guide
 
-This table is the router — resolve the task to a row, then go straight to that reference rather than searching this file further:
+This table is the router — resolve the task to a row, then go straight to that reference rather than searching this file further. The "Done when" column is the completion bar: don't consider the task finished until it is met, and never treat a folder listing or a wrapper exit code as proof of the intended outcome.
 
-| Task | Tool | Reference |
-|---|---|---|
-| Submit a quick ad-hoc job (no app build) | `app-swiss-army-knife` | `references/swiss-army-knife.md` |
-| Build a full reusable app | `eggd_` bash+Python pattern | `references/app-development.md` |
-| Configure `dxapp.json` | `inputSpec`/`runSpec`/`assetDepends` | `references/configuration.md` |
-| Upload/download/find files | `dx upload` / `dx download` / `dx find data` | `references/data-operations.md` |
-| Monitor jobs, chain jobs, trace provenance | `dx watch`, `dx describe`, dxpy `DXJob` | `references/job-execution.md` |
-| Automate with Python outside a job | `dxpy` SDK | `references/python-sdk.md` |
-| Navigate the Jira/GitHub/Confluence dev process | Driver/Navigator/Approver, GitFlow, Story lifecycle | `references/development-lifecycle.md` |
-| Raise the PR / respond to review comments | GitHub Flow, Jira-link guardrail | the `pr-workflow` skill (this plugin) |
-| Write up app testing evidence in Confluence | Documentation Vault dev-doc template | the `confluence-docs` skill, mode `create dev-doc` (this plugin) |
+| Task | Tool | Reference | Done when |
+|---|---|---|---|
+| Submit a quick ad-hoc job (no app build) | `app-swiss-army-knife` | `references/swiss-army-knife.md` | Job is `done` and its **specific** output object (by ID, not folder listing) is verified |
+| Build a full reusable app | `eggd_` bash+Python pattern | `references/app-development.md` | Platform test reaches `done` with every declared output present at the expected type/content |
+| Configure `dxapp.json` | `inputSpec`/`runSpec`/`assetDepends` | `references/configuration.md` | Config builds and its input/output contract is exercised on the platform |
+| Upload/download/find files | `dx upload` / `dx download` / `dx find data` | `references/data-operations.md` | Every input/output is identified by its canonical `project-xxx:file-xxx` reference |
+| Monitor jobs, chain jobs, trace provenance | `dx watch`, `dx describe`, dxpy `DXJob` | `references/job-execution.md` | Terminal state established; on failure, the **first causal** error (not a dependency termination) is identified |
+| Automate with Python outside a job | `dxpy` SDK | `references/python-sdk.md` | Script uses the intended project context and verifies results |
+| Navigate the Jira/GitHub/Confluence dev process | Driver/Navigator/Approver, GitFlow, Story lifecycle | `references/development-lifecycle.md` | Required release, test-evidence, and deployment records exist |
+| Raise the PR / respond to review comments | GitHub Flow, Jira-link guardrail | the `pr-workflow` skill (this plugin) | PR raised with the Jira key present; all review comments resolved |
+| Write up app testing evidence in Confluence | Documentation Vault dev-doc template | the `confluence-docs` skill, mode `create dev-doc` (this plugin) | Signed-off page describes the exact deployed version |
 
 ---
 

@@ -278,7 +278,9 @@ Packages are installed with `apt-get` from Ubuntu repos. Prefer `assetDepends` f
 **Do not** install Python packages from PyPI at runtime on a live network by default (`access.network` should be scoped, not left wide open, unless the app genuinely needs it). Instead, bundle `.whl` files in `resources/home/dnanexus/packages/` and install offline in `code.sh`:
 
 ```bash
-sudo -H python3 -m pip install --no-index --no-deps packages/*
+python3 -m venv /tmp/myapp-venv
+/tmp/myapp-venv/bin/pip install --no-index --no-deps packages/*
+export PATH="/tmp/myapp-venv/bin:$PATH"
 ```
 
 Wheel compatibility depends on the worker's Ubuntu release:
@@ -288,7 +290,7 @@ Wheel compatibility depends on the worker's Ubuntu release:
 | `24.04` (current standard) | 3.12 | `cp312`, `manylinux_2_39_x86_64` (or `manylinux2014` for pure-C wheels built long ago) |
 | `20.04` (legacy apps only) | 3.8 | `cp38`, `manylinux2014_x86_64` / `manylinux_2_17_x86_64` |
 
-On Ubuntu 24.04 workers, PEP 668 ("externally managed environment") means a plain `pip install` — even offline — can fail for packages that overlap OS-managed ones. If `--break-system-packages` isn't sufficient, install into a venv instead (`python3 -m venv /tmp/env && /tmp/env/bin/pip install --no-index --no-deps packages/*`).
+On Ubuntu 24.04 workers, PEP 668 ("externally managed environment") means a plain or `sudo` `pip install` — even offline — can fail for packages that overlap OS-managed ones, and `--break-system-packages` is not always sufficient. Always install bundled packages into a virtual environment as above; do not alter the worker's system Python.
 
 ## Timeout policy
 
