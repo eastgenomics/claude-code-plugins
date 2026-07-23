@@ -10,5 +10,10 @@
         "source": "github"
       }
     }
+  },
+  "sandbox": {
+    "enabled": true,
+    "failIfUnavailable": true,
+    "allowUnsandboxedCommands": false
   }
 }
