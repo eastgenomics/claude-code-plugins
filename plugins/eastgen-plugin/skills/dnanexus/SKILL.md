@@ -71,7 +71,7 @@ The project with `ADMINISTER` permission is the canonical source.
 `CONTRIBUTE`-only projects hold reference copies. Always record canonical IDs as
 `project-xxx:file-xxx` qualified strings — never bare `file-xxx` alone.
 
-**Under the restricted agent account** (see Authentication, above): `listProjects` will
+**Under the restricted agent account** (see **Authentication**, above): `listProjects` will
 never show `ADMINISTER` for any project, since the agent account is capped at
 `CONTRIBUTE`. This heuristic can't identify the canonical project from permissions
 alone in that case — fall back to the project the file was originally uploaded/generated
@@ -101,7 +101,7 @@ dx api project-xxx unarchive '{"files": ["file-aaa", "file-bbb"]}'
 # Small files: seconds. Large FASTA (~800 MB): up to 15 min.
 ```
 
-**Under the restricted agent account** (`CONTRIBUTE`, no `ADMINISTER` — see Authentication,
+**Under the restricted agent account** (`CONTRIBUTE`, no `ADMINISTER` — see **Authentication**,
 above): whether `unarchive` succeeds with only `CONTRIBUTE` hasn't been verified — and this
 applies to **both** paths above, not just the direct command: step 2 of the
 clone-then-unarchive fallback (`dx api your-project unarchive ...`) runs against
@@ -298,7 +298,7 @@ NEW_ID=$(dx build applet_dir/ --destination "project-xxx:/applets/" \
 sed -i "s|export APPLET_FOO=.*|export APPLET_FOO=\"${NEW_ID}\"|" resource_ids.env
 ```
 
-**Under the restricted agent account** (see Authentication, above): `--overwrite` implies
+**Under the restricted agent account** (see **Authentication**, above): `--overwrite` implies
 removing the prior applet object, which hasn't been verified against the delete-disabled
 restriction. If it fails, don't try a workaround — either build without `--overwrite`
 (a fresh applet ID each time, no replacement needed for `003_`/`004_` dev work) or escalate

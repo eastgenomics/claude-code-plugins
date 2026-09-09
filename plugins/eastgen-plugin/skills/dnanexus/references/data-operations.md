@@ -196,6 +196,11 @@ dx login          # interactive
 dx select <project>
 ```
 
+The interactive login above is for a **human's own local setup only**. Any agent-run
+automation (Claude Code or otherwise) must use the non-interactive, token-based login for
+the restricted agent account instead — see `SKILL.md` → **Authentication** for the
+mandatory pattern and account requirements.
+
 Or via token:
 ```python
 import dxpy

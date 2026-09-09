@@ -15,6 +15,11 @@ dx whoami
 dx select project-xxxx   # set default project
 ```
 
+The interactive `dx login` above is for a **human's own local setup only**. Any agent-run
+automation (Claude Code or otherwise) must use the non-interactive, token-based login for
+the restricted agent account instead — see `SKILL.md` → **Authentication** for the
+mandatory pattern and account requirements.
+
 Via API token:
 ```python
 import dxpy
