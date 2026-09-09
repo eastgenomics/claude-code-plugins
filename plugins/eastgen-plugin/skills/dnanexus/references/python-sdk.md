@@ -224,7 +224,7 @@ log = dxpy.api.job_get_log("job-xxxx")
 ## Error Handling
 
 ```python
-from dxpy.exceptions import DXAPIError, ResourceNotFound
+from dxpy.exceptions import DXAPIError, ResourceNotFound, PermissionDenied, InvalidInput
 
 try:
     file_obj = dxpy.DXFile("file-xxxx")

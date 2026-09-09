@@ -34,7 +34,7 @@ dx api project-xxxx unarchive '{"files": ["file-aaaa", "file-bbbb"]}'
 
 If you do not administer the source project, clone the file into an administered project first (`dx cp source:file-xxxx dest:/folder/`), then unarchive the clone. Do not submit work until the required file is `live`.
 
-**Under the restricted agent account** (see `SKILL.md` → **Authentication**): this isn't a working escape hatch either — the destination project is equally one the agent doesn't `ADMINISTER`. If unarchiving fails with a permission error, escalate to a human with `ADMINISTER` access rather than attempting it (see `SKILL.md` → File Archival State).
+**Under the restricted agent account** (see `SKILL.md` → **Authentication**): whether `unarchive` succeeds with only `CONTRIBUTE` hasn't been verified, and this applies to **both** routes above — the clone-then-unarchive fallback is no escape hatch either, since the destination project is equally one the agent doesn't `ADMINISTER`. If either fails with a permission error, escalate to a human with `ADMINISTER` access rather than attempting it (see `SKILL.md` → **File Archival State**).
 
 ## Inside an App (Bash CLI)
 
