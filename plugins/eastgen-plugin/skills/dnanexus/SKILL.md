@@ -165,6 +165,8 @@ The `resources/` directory is **overlaid onto the execution filesystem** at buil
 
 Production release of an app must go through `dx build --app` + `dx publish` and satisfy the org's code-review checklist (app not applet, `eggd_` prefix, `org-emee_1`-only access, `aws:eu-central-1`, timeout set, `assetDepends` preferred over manual installs, `set -e` minimum, pinned deps). See `references/development-lifecycle.md` for the full checklist and the Jira/GitHub process around it.
 
+**Under the restricted agent account** (see **Authentication**, above): app build/publish rights are governed by app-level developer/publish ACLs, not project `CONTRIBUTE` — whether a `MEMBER`-role account can `dx build --app`/`dx publish` at all hasn't been verified. If either fails with a permission error, escalate to a human rather than working around it; confirm the actual behaviour once and update this note.
+
 ---
 
 ## Common Gotchas

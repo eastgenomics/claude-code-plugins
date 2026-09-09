@@ -35,8 +35,8 @@ dxpy.set_workspace_id("project-xxxx")
 A bare `file-xxxx` can resolve in an unintended project if the same file exists in
 multiple projects — always qualify with the canonical project, per `SKILL.md` →
 **File ID Resolution** (see `references/data-operations.md` for the `listProjects`
-lookup). The examples below use a bare ID for brevity; qualify it in real code, e.g.
-`dxpy.DXFile("file-xxxx", project="project-xxxx")`.
+lookup). Later examples use a bare ID for brevity; qualify it in real code, e.g.
+`dxpy.DXFile("file-xxxx", project="project-xxxx")` as shown just below.
 
 ## Core Classes
 
