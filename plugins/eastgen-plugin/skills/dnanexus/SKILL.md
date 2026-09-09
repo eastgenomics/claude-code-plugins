@@ -302,9 +302,11 @@ sed -i "s|export APPLET_FOO=.*|export APPLET_FOO=\"${NEW_ID}\"|" resource_ids.en
 
 **Under the restricted agent account** (see **Authentication**, above): `--overwrite` implies
 removing the prior applet object, which hasn't been verified against the delete-disabled
-restriction. If it fails, don't try a workaround — either build without `--overwrite`
-(a fresh applet ID each time, no replacement needed for `003_`/`004_` dev work) or escalate
-to a human to confirm the actual behaviour once and update this note.
+restriction. Building without `--overwrite` isn't a confirmed-safe fallback either — `dx
+build` errors on a same-named object already at the destination unless `--overwrite` (or
+`--archive`) is passed, which is exactly the repeated-build case this gotcha covers. If
+either path fails, don't try further workarounds — escalate to a human to confirm the
+actual behaviour once and update this note.
 
 **Applet `dxapp.json` template fields required by East Genomics** — see `references/configuration.md` for the full spec; the fields specific to East Genomics rather than the DNAnexus default are:
 
