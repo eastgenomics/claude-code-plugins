@@ -32,6 +32,12 @@ dxpy.set_security_context({
 dxpy.set_workspace_id("project-xxxx")
 ```
 
+A bare `file-xxxx` can resolve in an unintended project if the same file exists in
+multiple projects — always qualify with the canonical project, per `SKILL.md` →
+**File ID Resolution** (see `references/data-operations.md` for the `listProjects`
+lookup). The examples below use a bare ID for brevity; qualify it in real code, e.g.
+`dxpy.DXFile("file-xxxx", project="project-xxxx")`.
+
 ## Core Classes
 
 ### DXFile
@@ -39,8 +45,8 @@ dxpy.set_workspace_id("project-xxxx")
 ```python
 import dxpy
 
-# Get handler
-file_obj = dxpy.DXFile("file-xxxx")
+# Get handler — qualify with project= once the canonical project is known (File ID Resolution)
+file_obj = dxpy.DXFile("file-xxxx", project="project-xxxx")
 
 # Describe
 desc = file_obj.describe()
