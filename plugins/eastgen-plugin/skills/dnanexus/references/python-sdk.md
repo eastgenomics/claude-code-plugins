@@ -20,13 +20,14 @@ automation (Claude Code or otherwise) must use the non-interactive, token-based 
 the restricted agent account instead — see `SKILL.md` → **Authentication** for the
 mandatory pattern and account requirements.
 
-Via API token:
+Via API token — read it from the environment, never hardcode the value:
 ```python
+import os
 import dxpy
 
 dxpy.set_security_context({
     "auth_token_type": "Bearer",
-    "auth_token": "YOUR_API_TOKEN"
+    "auth_token": os.environ["DNANEXUS_API_TOKEN"]
 })
 dxpy.set_workspace_id("project-xxxx")
 ```
