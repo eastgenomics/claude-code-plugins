@@ -20,7 +20,16 @@ DNAnexus is a cloud platform for biomedical data analysis running on AWS `eu-cen
 - **App template repo**: [DNAnexus_app_template](https://github.com/eastgenomics/DNAnexus_app_template) — start new app repos from this.
 - **DNAnexus project prefixes**: `001_` reference data, `002_` production clinical service runs, `003_` general working/dev projects (auto-archived/deleted over time), `004_` validation projects with compliance-retained data. Dev/test work: `003_YYMMDD_<kebab-case-topic>`; rename to `004_...` if results need long-term retention. See `references/development-lifecycle.md`.
 - **Production release must be an app, not an applet**: `dx build --app`, then `dx publish eggd_x/version`. Applets are fine for `003_`/`004_` development/testing only.
-- **Authentication**: authenticate non-interactively with `$DNANEXUS_API_TOKEN` — `dx login --token "$DNANEXUS_API_TOKEN" --noprojects` (CLI) or dxpy's `dxpy.set_security_context({"auth_token_type": "Bearer", "auth_token": os.environ["DNANEXUS_API_TOKEN"]})` — never an interactive password login, and never hardcode the token value. **This token must belong to a dedicated agent/service DNAnexus account with delete permissions disabled** (`MEMBER` org role, `CONTRIBUTE` project permission — never `ADMINISTER` — with delete disabled via advanced permissions) — never a person's own DNAnexus login. Because it's capped at `CONTRIBUTE`, this account will never show `ADMINISTER` on any project — see the note in **File ID Resolution** below. Account setup is a one-off human task (Claude cannot fetch this page itself): [Onboarding for Claude](https://cuhbioinformatics.atlassian.net/wiki/spaces/DV/pages/4739137538/Onboarding+for+Claude) (Confluence). Before running anything against real data, confirm `dx whoami` resolves to the agent account, not a personal one — see the Common Gotchas entry below.
+
+## Authentication
+
+Authenticate non-interactively with `$DNANEXUS_API_TOKEN` — `dx login --token "$DNANEXUS_API_TOKEN" --noprojects` (CLI) or dxpy's `dxpy.set_security_context({"auth_token_type": "Bearer", "auth_token": os.environ["DNANEXUS_API_TOKEN"]})` — never an interactive password login, and never hardcode the token value.
+
+**This token must belong to a dedicated agent/service DNAnexus account with delete permissions disabled** (`MEMBER` org role, `CONTRIBUTE` project permission — never `ADMINISTER` — with delete disabled via advanced permissions) — never a person's own DNAnexus login. Because it's capped at `CONTRIBUTE`, this account will never show `ADMINISTER` on any project — see the note in **File ID Resolution** below.
+
+Account setup is a one-off human task (Claude cannot fetch this page itself): [Onboarding for Claude](https://cuhbioinformatics.atlassian.net/wiki/spaces/DV/pages/4739137538/Onboarding+for+Claude) (Confluence).
+
+Before running anything against real data, confirm `dx whoami` resolves to the agent account, not a personal one — see the Common Gotchas entry below.
 
 ## Quick Task Guide
 
@@ -38,6 +47,7 @@ This table is the router — resolve the task to a row, then go straight to that
 | Raise the PR / respond to review comments | GitHub Flow, Jira-link guardrail | the `pr-workflow` skill (this plugin) | PR raised with the Jira key present; all review comments resolved |
 | Write up app testing evidence in Confluence | Documentation Vault dev-doc template | the `confluence-docs` skill, mode `create dev-doc` (this plugin) | Signed-off page describes the exact deployed version |
 | Set up (or rotate) the agent DNAnexus account/token — **human-performed, not something Claude does for itself** | New DNAnexus login + org invite | [Onboarding for Claude](https://cuhbioinformatics.atlassian.net/wiki/spaces/DV/pages/4739137538/Onboarding+for+Claude) (Confluence) | `dx whoami` shows the agent account; a human, authenticated as the agent (`dx login --token "$DNANEXUS_API_TOKEN"` — not their own personal login), attempts to delete one disposable test object the agent itself uploaded into a `003_` project and gets a permission error — a successful delete means the restriction isn't actually configured |
+| A job/download fails with `InvalidState` or a 422 error | Check `archivalState` on the file | `## File Archival State` (below) | File is `live` (or successfully unarchived) and the job/download re-run succeeds |
 
 ---
 
@@ -141,10 +151,10 @@ eggd_myapp/
 ├── src/
 │   └── code.sh             # Bash entry point — handles all DNAnexus I/O
 ├── resources/
-│   └── home/dnanexus/
-│       ├── myapp/          # Python source (deployed to /home/dnanexus/myapp/)
-│       │   └── myapp.py    # Pure Python CLI — no dxpy imports
-│       └── packages/       # Bundled .whl files (offline pip install)
+│   ├── home/dnanexus/
+│   │   ├── myapp/          # Python source (deployed to /home/dnanexus/myapp/)
+│   │   │   └── myapp.py    # Pure Python CLI — no dxpy imports
+│   │   └── packages/       # Bundled .whl files (offline pip install)
 │   └── usr/local/bin/
 │       ├── mark-section    # Structured logging utility
 │       └── mark-success    # Job success marker
@@ -339,8 +349,7 @@ Two more gotchas that bite often enough to flag here but are documented in full,
 with fix commands, in `references/data-operations.md`: **chromosome naming**
 (chr-prefixed vs no-chr BAMs/BEDs/VCFs producing silent empty output on mismatch)
 and **multiple file versions at the same path** (always fetch a specific job's
-output file ID, never assume the newest by folder listing). The **BAI-index-must-
-sit-alongside-BAM** gotcha is documented the same way in `references/swiss-army-knife.md`.
+output file ID, never assume the newest by folder listing). The gotcha that **the BAI index must sit alongside the BAM** is documented the same way in `references/swiss-army-knife.md`.
 
 ---
 
