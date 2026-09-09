@@ -8,7 +8,7 @@ allowed-tools: Bash, Read, Write, Edit, Grep, Glob
 
 ## Overview
 
-DNAnexus is a cloud platform for biomedical data analysis running on AWS `eu-central-1`. This skill covers building and deploying apps/applets using the organisation's standard patterns, managing data objects, and scripting with the dxpy Python SDK. Requires a DNAnexus account with access to `org-emee_1`.
+DNAnexus is a cloud platform for biomedical data analysis running on AWS `eu-central-1`. This skill covers building and deploying apps/applets using the organisation's standard patterns, managing data objects, and scripting with the dxpy Python SDK. Requires a DNAnexus account with access to `org-emee_1` — see **Authentication** below for the required account type.
 
 ## Organisation Context
 
@@ -20,6 +20,7 @@ DNAnexus is a cloud platform for biomedical data analysis running on AWS `eu-cen
 - **App template repo**: [DNAnexus_app_template](https://github.com/eastgenomics/DNAnexus_app_template) — start new app repos from this.
 - **DNAnexus project prefixes**: `001_` reference data, `002_` production clinical service runs, `003_` general working/dev projects (auto-archived/deleted over time), `004_` validation projects with compliance-retained data. Dev/test work: `003_YYMMDD_<kebab-case-topic>`; rename to `004_...` if results need long-term retention. See `references/development-lifecycle.md`.
 - **Production release must be an app, not an applet**: `dx build --app`, then `dx publish eggd_x/version`. Applets are fine for `003_`/`004_` development/testing only.
+- **Authentication**: authenticate non-interactively with `$DNANEXUS_API_TOKEN` — `dx login --token "$DNANEXUS_API_TOKEN" --noprojects` (CLI) or dxpy's `dxpy.set_security_context({"auth_token_type": "Bearer", "auth_token": os.environ["DNANEXUS_API_TOKEN"]})` — never an interactive password login, and never hardcode the token value. **This token must belong to a dedicated agent/service DNAnexus account with delete permissions disabled** (`MEMBER` org role, `CONTRIBUTE` project permission — never `ADMINISTER` — with delete disabled via advanced permissions) — never a person's own DNAnexus login. Because it's capped at `CONTRIBUTE`, this account will never show `ADMINISTER` on any project — see the note in **File ID Resolution** below. Account setup is a one-off human task (Claude cannot fetch this page itself): [Onboarding for Claude](https://cuhbioinformatics.atlassian.net/wiki/spaces/DV/pages/4739137538/Onboarding+for+Claude) (Confluence). Before running anything against real data, confirm `dx whoami` resolves to the agent account, not a personal one — see the Common Gotchas entry below.
 
 ## Quick Task Guide
 
@@ -36,6 +37,7 @@ This table is the router — resolve the task to a row, then go straight to that
 | Navigate the Jira/GitHub/Confluence dev process | Driver/Navigator/Approver, GitFlow, Story lifecycle | `references/development-lifecycle.md` | Required release, test-evidence, and deployment records exist |
 | Raise the PR / respond to review comments | GitHub Flow, Jira-link guardrail | the `pr-workflow` skill (this plugin) | PR raised with the Jira key present; all review comments resolved |
 | Write up app testing evidence in Confluence | Documentation Vault dev-doc template | the `confluence-docs` skill, mode `create dev-doc` (this plugin) | Signed-off page describes the exact deployed version |
+| Set up (or rotate) the agent DNAnexus account/token — **human-performed, not something Claude does for itself** | New DNAnexus login + org invite | [Onboarding for Claude](https://cuhbioinformatics.atlassian.net/wiki/spaces/DV/pages/4739137538/Onboarding+for+Claude) (Confluence) | `dx whoami` shows the agent account; a human, authenticated as the agent (`dx login --token "$DNANEXUS_API_TOKEN"` — not their own personal login), attempts to delete one disposable test object the agent itself uploaded into a `003_` project and gets a permission error — a successful delete means the restriction isn't actually configured |
 
 ---
 
@@ -58,6 +60,12 @@ dx api file-Gb73P8Q4XGyX9QZ0g9qp61xV listProjects
 The project with `ADMINISTER` permission is the canonical source.
 `CONTRIBUTE`-only projects hold reference copies. Always record canonical IDs as
 `project-xxx:file-xxx` qualified strings — never bare `file-xxx` alone.
+
+**Under the restricted agent account** (see Authentication, above): `listProjects` will
+never show `ADMINISTER` for any project, since the agent account is capped at
+`CONTRIBUTE`. This heuristic can't identify the canonical project from permissions
+alone in that case — fall back to the project the file was originally uploaded/generated
+in (from job/upload records), or ask a human with `ADMINISTER` access to confirm.
 
 This resolution step applies everywhere a file ID shows up below — job inputs, uploads, dxpy calls — not just here.
 
@@ -82,6 +90,15 @@ dx api project-xxx unarchive '{"files": ["file-aaa", "file-bbb"]}'
 #   2. Unarchive:    dx api your-project unarchive '{"files": ["file-xxx"]}'
 # Small files: seconds. Large FASTA (~800 MB): up to 15 min.
 ```
+
+**Under the restricted agent account** (`CONTRIBUTE`, no `ADMINISTER` — see Authentication,
+above): whether `unarchive` succeeds with only `CONTRIBUTE` hasn't been verified — and this
+applies to **both** paths above, not just the direct command: step 2 of the
+clone-then-unarchive fallback (`dx api your-project unarchive ...`) runs against
+`your-project`, which is equally a project the agent doesn't `ADMINISTER`, so it isn't a
+working escape hatch either. If either fails with a permission error, escalate to a human
+with `ADMINISTER` access rather than attempting to self-elevate permissions or work around
+it; confirm the actual behaviour once and update this note.
 
 ---
 
@@ -143,6 +160,27 @@ Production release of an app must go through `dx build --app` + `dx publish` and
 ## Common Gotchas
 
 These cut across app development, swiss-army-knife jobs, and job execution alike — check this list before assuming a failure is a code bug.
+
+### Confirm you're authenticated as the agent account, not a personal one
+
+A stale shell session, a wrong/unset env var, or a leftover interactive `dx login` can
+silently leave `dx` authenticated as a person's own DNAnexus account instead of the
+restricted agent account — which has full personal permissions, delete included. Check
+before running anything against real data:
+
+```bash
+dx whoami
+# Must NOT match the person's own personal DNAnexus username — by convention the
+# agent account is a visibly distinct login (e.g. ends in _agent, per Onboarding
+# for Claude). If you don't know the expected agent username for this environment,
+# ask rather than guessing whether the printed name "looks like" an agent account.
+```
+
+If it matches (or might match) a personal account, stop — don't re-run
+`dx login --token "$DNANEXUS_API_TOKEN" --noprojects` and assume that fixes it, since a
+wrong result usually means the env var itself holds the wrong token, and re-running the
+same login just reproduces the same wrong identity. Re-check `dx whoami` after any fix
+attempt; if it's still wrong, escalate to a human rather than retrying or proceeding.
 
 ### `pip install` on Ubuntu 24.04 workers — use a venv
 
@@ -250,6 +288,12 @@ NEW_ID=$(dx build applet_dir/ --destination "project-xxx:/applets/" \
 sed -i "s|export APPLET_FOO=.*|export APPLET_FOO=\"${NEW_ID}\"|" resource_ids.env
 ```
 
+**Under the restricted agent account** (see Authentication, above): `--overwrite` implies
+removing the prior applet object, which hasn't been verified against the delete-disabled
+restriction. If it fails, don't try a workaround — either build without `--overwrite`
+(a fresh applet ID each time, no replacement needed for `003_`/`004_` dev work) or escalate
+to a human to confirm the actual behaviour once and update this note.
+
 **Applet `dxapp.json` template fields required by East Genomics** — see `references/configuration.md` for the full spec; the fields specific to East Genomics rather than the DNAnexus default are:
 
 ```json
@@ -328,3 +372,4 @@ never a stale earlier draft.
 
 - Official documentation: https://documentation.dnanexus.com/
 - dx-toolkit GitHub: https://github.com/dnanexus/dx-toolkit
+- Agent account setup (email alias, org invite, token generation): [Onboarding for Claude](https://cuhbioinformatics.atlassian.net/wiki/spaces/DV/pages/4739137538/Onboarding+for+Claude) (Confluence, human-only — not fetchable by Claude)
