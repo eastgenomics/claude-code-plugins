@@ -194,6 +194,14 @@ wrong result usually means the env var itself holds the wrong token, and re-runn
 same login just reproduces the same wrong identity. Re-check `dx whoami` after any fix
 attempt; if it's still wrong, escalate to a human rather than retrying or proceeding.
 
+**`dx whoami` only verifies the CLI session — it does not prove `dxpy.set_security_context(...)`
+is configured with the same token.** The CLI (`dx`) and dxpy's security context are set
+independently; a dxpy-based script (see `references/python-sdk.md`, `references/data-operations.md`)
+can be running under a different identity than whatever `dx whoami` shows. For dxpy/Python
+automation, verify identity in that same context instead — call `dxpy.api.system_whoami()`
+right after `dxpy.set_security_context(...)` and confirm it resolves to the agent account
+before proceeding, the same way `dx whoami` is checked for CLI work.
+
 ### `pip install` on Ubuntu 24.04 workers — use a venv
 
 Ubuntu 24.04 enforces PEP 668 (externally managed Python). Plain `pip install` fails

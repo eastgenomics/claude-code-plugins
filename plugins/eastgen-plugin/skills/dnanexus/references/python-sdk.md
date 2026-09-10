@@ -35,8 +35,9 @@ dxpy.set_workspace_id("project-xxxx")
 A bare `file-xxxx` can resolve in an unintended project if the same file exists in
 multiple projects — always qualify with the canonical project, per `SKILL.md` →
 **File ID Resolution** (see `references/data-operations.md` for the `listProjects`
-lookup). Later examples use a bare ID for brevity; qualify it in real code, e.g.
-`dxpy.DXFile("file-xxxx", project="project-xxxx")` as shown just below.
+lookup). Every executable example below that references a file passes its project
+explicitly for this reason — don't drop the `project=`/second-argument qualifier when
+adapting them.
 
 ## Core Classes
 
@@ -52,8 +53,8 @@ file_obj = dxpy.DXFile("file-xxxx", project="project-xxxx")
 desc = file_obj.describe()
 print(desc['name'], desc['size'], desc['state'])
 
-# Download
-dxpy.download_dxfile(file_obj.get_id(), "local_file.txt")
+# Download — qualify with the same project, don't drop it after opening the handler
+dxpy.download_dxfile(file_obj.get_id(), "local_file.txt", project="project-xxxx")
 
 # Read contents without saving locally
 with file_obj.open_file() as f:
@@ -104,15 +105,15 @@ job.terminate()
 ### DXApplet / DXApp
 
 ```python
-# Run an applet
+# Run an applet — qualify job-input file references the same as any other (File ID Resolution)
 job = dxpy.DXApplet("applet-xxxx").run({
-    "input_file": dxpy.dxlink("file-yyyy"),
+    "input_file": dxpy.dxlink("file-yyyy", "project-yyyy"),
     "param": "value"
 })
 
 # Run an app by name
 job = dxpy.DXApp(name="eggd_generate_variant_workbook").run({
-    "vcfs": [dxpy.dxlink("file-yyyy")],
+    "vcfs": [dxpy.dxlink("file-yyyy", "project-yyyy")],
     "summary": "dias"
 })
 ```
@@ -121,7 +122,7 @@ job = dxpy.DXApp(name="eggd_generate_variant_workbook").run({
 
 ```python
 analysis = dxpy.DXWorkflow("workflow-xxxx").run({
-    "stage-0.vcfs": [dxpy.dxlink("file-yyyy")]
+    "stage-0.vcfs": [dxpy.dxlink("file-yyyy", "project-yyyy")]
 })
 analysis.wait_on_done()
 ```
@@ -153,8 +154,8 @@ file_obj = dxpy.upload_local_file(
     tags=["validated"]
 )
 
-# Download
-dxpy.download_dxfile("file-xxxx", "local_copy.xlsx")
+# Download — qualify with the canonical project (File ID Resolution)
+dxpy.download_dxfile("file-xxxx", "local_copy.xlsx", project="project-xxxx")
 ```
 
 ### Search functions
@@ -233,7 +234,7 @@ log = dxpy.api.job_get_log("job-xxxx")
 from dxpy.exceptions import DXAPIError, ResourceNotFound, PermissionDenied, InvalidInput
 
 try:
-    file_obj = dxpy.DXFile("file-xxxx")
+    file_obj = dxpy.DXFile("file-xxxx", project="project-xxxx")
     desc = file_obj.describe()
 except ResourceNotFound:
     print("File not found")
@@ -260,8 +261,9 @@ files = dxpy.find_data_objects(
 
 jobs = []
 for f in files:
+    # dxlink(id, project) keeps the object project-qualified, not a bare ID
     job = dxpy.DXApp(name="eggd_generate_variant_workbook").run({
-        "vcfs": [dxpy.dxlink(f["id"])]
+        "vcfs": [dxpy.dxlink(f["id"], "project-xxxx")]
     })
     jobs.append(job)
 
@@ -285,13 +287,13 @@ files = dxpy.find_data_objects(
 os.makedirs("./downloads", exist_ok=True)
 for f in files:
     name = f["describe"]["name"]
-    dxpy.download_dxfile(f["id"], f"./downloads/{name}")
+    dxpy.download_dxfile(f["id"], f"./downloads/{name}", project="project-xxxx")
 ```
 
 ### Check file details metadata
 
 ```python
-file_obj = dxpy.DXFile("file-xxxx")
+file_obj = dxpy.DXFile("file-xxxx", project="project-xxxx")
 desc = file_obj.describe(fields={"name": True, "details": True})
 details = desc.get("details", {})
 print(details)  # e.g. {"included": 42, "excluded": 105}

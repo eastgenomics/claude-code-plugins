@@ -233,12 +233,15 @@ print(file_obj.get_id())
 
 ### Downloading files
 
+Qualify with the canonical project (see **Canonical file references**, above) — don't
+drop it when adapting these examples:
+
 ```python
-dxpy.download_dxfile("file-xxxx", "local_output.xlsx")
+dxpy.download_dxfile("file-xxxx", "local_output.xlsx", project="project-xxxx")
 
 # Or via handler
-file_obj = dxpy.DXFile("file-xxxx")
-dxpy.download_dxfile(file_obj.get_id(), "local_output.xlsx")
+file_obj = dxpy.DXFile("file-xxxx", project="project-xxxx")
+dxpy.download_dxfile(file_obj.get_id(), "local_output.xlsx", project="project-xxxx")
 ```
 
 ### Searching for files
@@ -267,7 +270,7 @@ results = dxpy.find_data_objects(
 ### File metadata
 
 ```python
-file_obj = dxpy.DXFile("file-xxxx")
+file_obj = dxpy.DXFile("file-xxxx", project="project-xxxx")
 desc = file_obj.describe()
 print(desc['name'], desc['size'], desc['details'])
 
@@ -288,8 +291,8 @@ dxpy.api.project_new_folder(
 # Move file
 dxpy.DXFile("file-xxxx", project="project-xxxx").move("/results/batch1")
 
-# Clone to another project
-dxpy.DXFile("file-xxxx").clone("project-yyyy", folder="/imported")
+# Clone to another project — qualify the source project, "project-yyyy" here is the destination
+dxpy.DXFile("file-xxxx", project="project-xxxx").clone("project-yyyy", folder="/imported")
 ```
 
 ### Batch download
@@ -302,9 +305,9 @@ files = dxpy.find_data_objects(
 )
 
 for f in files:
-    obj = dxpy.DXFile(f['id'])
+    obj = dxpy.DXFile(f['id'], project="project-xxxx")
     name = obj.describe()['name']
-    dxpy.download_dxfile(f['id'], f"./downloads/{name}")
+    dxpy.download_dxfile(f['id'], f"./downloads/{name}", project="project-xxxx")
 ```
 
 ## File Details Metadata
@@ -319,7 +322,7 @@ output_id=$(dx upload report.xlsx --wait --brief --details "$JSON_DETAILS")
 
 ```python
 # In a script — read details from an existing file
-file_obj = dxpy.DXFile("file-xxxx")
+file_obj = dxpy.DXFile("file-xxxx", project="project-xxxx")
 details = file_obj.describe(fields={"details": True}).get("details", {})
 print(details)  # e.g. {"included": 42, "excluded": 105, "clinical_indication": "R208"}
 ```
