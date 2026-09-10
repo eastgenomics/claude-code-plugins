@@ -1,7 +1,7 @@
 ---
 name: dnanexus
 description: DNAnexus cloud genomics platform for East Genomics — building/deploying apps and applets, ad-hoc jobs via app-swiss-army-knife, dx/dxpy data operations, job and workflow monitoring, and the Jira/GitHub/Confluence release process for DNAnexus work. Use for dx CLI commands, dxapp.json, app-swiss-army-knife, or any org-emee_1 DNAnexus task.
-allowed-tools: Bash, Read, Write, Edit, Grep, Glob, mcp__plugin_eastgen-plugin_dnanexus-documentation__searchDocumentation, mcp__plugin_eastgen-plugin_dnanexus-documentation__getPage, mcp__plugin_eastgen-plugin_dnanexus-documentation__askQuestion, mcp__plugin_eastgen-plugin_dnanexus-documentation__sendFeedback
+allowed-tools: Bash, Read, Write, Edit, Grep, Glob, mcp__plugin_eastgen-plugin_dnanexus-documentation__searchDocumentation, mcp__plugin_eastgen-plugin_dnanexus-documentation__getPage, mcp__plugin_eastgen-plugin_dnanexus-documentation__askQuestion
 ---
 
 # DNAnexus Integration (East Genomics)
@@ -331,13 +331,15 @@ never a stale earlier draft.
   behaviour, anything this skill doesn't cover or might be stale on), `searchDocumentation`
   to browse matching pages, and `getPage` to read one in full. Prefer this over guessing
   when a question is about official DNAnexus platform behaviour rather than this org's own
-  conventions. If you find the docs themselves wrong, outdated, or missing something while
-  using them, you may report it with `sendFeedback` — **but this sends free text to a
-  third party (GitBook/DNAnexus), so confirm with the user first, and never include
-  org-internal identifiers in the report**: no `project-xxx`/`file-xxx`/`job-xxx` IDs, no
-  `org-emee_1` project or app names, no patient/sample data. Describe the documentation
-  problem in the abstract (what the page claims vs. what you actually observed) — DNAnexus's
-  own generic placeholders (`project-xxxx`, `file-xxxx`) are the right level of detail, not
-  this org's real identifiers.
+  conventions. **Every query sent to this server is free text delivered to a third party
+  (GitBook/DNAnexus) — never include org-internal identifiers in it**: no
+  `project-xxx`/`file-xxx`/`job-xxx` IDs, no `org-emee_1` project or app names, no
+  patient/sample data. Describe things in the abstract (what you observed, not which real
+  object it happened to) — DNAnexus's own generic placeholders (`project-xxxx`, `file-xxxx`)
+  are the right level of detail, not this org's real identifiers. If you find the docs
+  themselves wrong, outdated, or missing something, `sendFeedback` can report it — that tool
+  is deliberately **not** in this skill's pre-authorized `allowed-tools`, so it always stops
+  for an explicit human approval first; don't work around that by asking the user to invoke
+  it in your place.
 - Official documentation: https://documentation.dnanexus.com/
 - dx-toolkit GitHub: https://github.com/dnanexus/dx-toolkit
