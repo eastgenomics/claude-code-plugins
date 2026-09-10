@@ -36,6 +36,7 @@ This table is the router — resolve the task to a row, then go straight to that
 | Navigate the Jira/GitHub/Confluence dev process | Driver/Navigator/Approver, GitFlow, Story lifecycle | `references/development-lifecycle.md` | Required release, test-evidence, and deployment records exist |
 | Raise the PR / respond to review comments | GitHub Flow, Jira-link guardrail | the `pr-workflow` skill (this plugin) | PR raised with the Jira key present; all review comments resolved |
 | Write up app testing evidence in Confluence | Documentation Vault dev-doc template | the `confluence-docs` skill, mode `create dev-doc` (this plugin) | Signed-off page describes the exact deployed version |
+| Look up official DNAnexus platform behaviour (not this org's conventions) | `dnanexus-documentation` MCP (`askQuestion`/`searchDocumentation`/`getPage`) | "Getting Help", below | Answer is sourced to a doc page; the query sent contained no org-internal identifiers |
 
 ---
 
@@ -338,8 +339,8 @@ never a stale earlier draft.
   object it happened to) — DNAnexus's own generic placeholders (`project-xxxx`, `file-xxxx`)
   are the right level of detail, not this org's real identifiers. If you find the docs
   themselves wrong, outdated, or missing something, `sendFeedback` can report it — that tool
-  is deliberately **not** in this skill's pre-authorized `allowed-tools`, so it always stops
-  for an explicit human approval first; don't work around that by asking the user to invoke
-  it in your place.
+  is deliberately **not** in this skill's pre-authorized `allowed-tools`, so invoking it goes
+  through the normal permission prompt instead of skipping it; don't work around that by
+  asking the user to invoke it in your place.
 - Official documentation: https://documentation.dnanexus.com/
 - dx-toolkit GitHub: https://github.com/dnanexus/dx-toolkit
