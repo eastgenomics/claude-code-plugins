@@ -103,13 +103,11 @@ dx api project-xxx unarchive '{"files": ["file-aaa", "file-bbb"]}'
 ```
 
 **Under the restricted agent account** (`CONTRIBUTE`, no `ADMINISTER` — see **Authentication**,
-above): whether `unarchive` succeeds with only `CONTRIBUTE` hasn't been verified — and this
-applies to **both** paths above, not just the direct command: step 2 of the
-clone-then-unarchive fallback (`dx api your-project unarchive ...`) runs against
-`your-project`, which is equally a project the agent doesn't `ADMINISTER`, so it isn't a
-working escape hatch either. If either fails with a permission error, escalate to a human
-with `ADMINISTER` access rather than attempting to self-elevate permissions or work around
-it; confirm the actual behaviour once and update this note.
+above): confirmed — `CONTRIBUTE` is sufficient for `/project-xxxx/unarchive`; it is not
+gated behind `ADMINISTER` or the account's disabled-delete restriction, which is a separate
+permission (source: [Project Permissions and Sharing](https://documentation.dnanexus.com/developer/api/data-containers/project-permissions-and-sharing)).
+The clone-then-unarchive fallback (step 2 above) is unnecessary for this account — unarchive
+directly in place instead of cloning first.
 
 ---
 
@@ -166,7 +164,7 @@ The `resources/` directory is **overlaid onto the execution filesystem** at buil
 
 Production release of an app must go through `dx build --app` + `dx publish` and satisfy the org's code-review checklist (app not applet, `eggd_` prefix, `org-emee_1`-only access, `aws:eu-central-1`, timeout set, `assetDepends` preferred over manual installs, `set -e` minimum, pinned deps). See `references/development-lifecycle.md` for the full checklist and the Jira/GitHub process around it.
 
-**Under the restricted agent account** (see **Authentication**, above): app build/publish rights are governed by app-level developer/publish ACLs, not project `CONTRIBUTE` — whether a `MEMBER`-role account can `dx build --app`/`dx publish` at all hasn't been verified. If either fails with a permission error, escalate to a human rather than working around it; confirm the actual behaviour once and update this note.
+**Under the restricted agent account** (see **Authentication**, above): confirmed — `/app-xxxx/publish` is gated by app-creator/developer authorization, not project `ADMINISTER` or org role (source: [Apps](https://documentation.dnanexus.com/developer/api/running-analyses/apps)). So the agent account can `dx build --app` + `dx publish` **only for an app it built itself** (making it the creator) — it has no publish rights over an app someone else (a human, or a different account) created, even with `CONTRIBUTE` on the project. If the agent is asked to publish an app it didn't build, that will fail with a permission error; escalate to whoever built it (or have the agent build it in the first place) rather than trying to work around it.
 
 ---
 
@@ -309,13 +307,19 @@ NEW_ID=$(dx build applet_dir/ --destination "project-xxx:/applets/" \
 sed -i "s|export APPLET_FOO=.*|export APPLET_FOO=\"${NEW_ID}\"|" resource_ids.env
 ```
 
-**Under the restricted agent account** (see **Authentication**, above): `--overwrite` implies
-removing the prior applet object, which hasn't been verified against the delete-disabled
-restriction. Building without `--overwrite` isn't a confirmed-safe fallback either — `dx
-build` errors on a same-named object already at the destination unless `--overwrite` (or
-`--archive`) is passed, which is exactly the repeated-build case this gotcha covers. If
-either path fails, don't try further workarounds — escalate to a human to confirm the
-actual behaviour once and update this note.
+**Under the restricted agent account** (see **Authentication**, above): confirmed —
+`--overwrite`/`-f` explicitly means "remove existing applet(s) of the same name in the
+destination folder" (source: [Index of dx commands](https://documentation.dnanexus.com/user/helpstrings-of-sdk-command-line-utilities)),
+i.e. it performs a delete. Deletion is gated by the project's `PROTECTED` flag: with
+`CONTRIBUTE`, an account can delete objects only when `PROTECTED` is `false`; the agent
+account's "delete disabled" setting is this flag set `true`, under which **only
+`ADMINISTER` can delete** (source: [Projects](https://documentation.dnanexus.com/getting-started/key-concepts/projects)).
+So **both paths in this account genuinely fail** when a same-named applet already exists
+at the destination — `--overwrite` needs delete rights it doesn't have, and a plain rebuild
+hits the same "already exists" error `--overwrite` exists to resolve. The actual fix: build
+to a fresh destination (new applet name, or a new dated folder) each time so there's never
+an existing object to remove, rather than rebuilding in place — reserve in-place rebuilds
+for a human with `ADMINISTER`.
 
 **Applet `dxapp.json` template fields required by East Genomics** — see `references/configuration.md` for the full spec; the fields specific to East Genomics rather than the DNAnexus default are:
 
