@@ -13,7 +13,7 @@ Claude Code plugin marketplace for East Genomics.
   - `dnanexus` — build/deploy DNAnexus apps and applets, manage data with `dx`/dxpy, run and monitor jobs, navigate the Jira/GitHub/Confluence release process
   - `shared/confluence/HTML_DIALECT.md` — the Confluence HTML+ component reference both confluence skills use
   - `mcpServers.atlassian` — the official Atlassian remote MCP server (Confluence + Jira Cloud), OAuth-authenticated per user
-  - `mcpServers.dnanexus-documentation` — GitBook's MCP server for the official DNAnexus documentation site (search, page fetch, sourced Q&A, doc-issue feedback), unauthenticated; used by the `dnanexus` skill
+  - `mcpServers.dnanexus-documentation` — GitBook's MCP server for the official DNAnexus documentation site (search, page fetch, sourced Q&A, doc-issue feedback); read access is unauthenticated (verified), the feedback-submission path wasn't separately checked. Used by the `dnanexus` skill
 
 ## Team setup
 

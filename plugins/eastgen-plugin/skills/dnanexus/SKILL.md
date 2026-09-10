@@ -332,6 +332,12 @@ never a stale earlier draft.
   to browse matching pages, and `getPage` to read one in full. Prefer this over guessing
   when a question is about official DNAnexus platform behaviour rather than this org's own
   conventions. If you find the docs themselves wrong, outdated, or missing something while
-  using them, call `sendFeedback` to report it.
+  using them, you may report it with `sendFeedback` — **but this sends free text to a
+  third party (GitBook/DNAnexus), so confirm with the user first, and never include
+  org-internal identifiers in the report**: no `project-xxx`/`file-xxx`/`job-xxx` IDs, no
+  `org-emee_1` project or app names, no patient/sample data. Describe the documentation
+  problem in the abstract (what the page claims vs. what you actually observed) — DNAnexus's
+  own generic placeholders (`project-xxxx`, `file-xxxx`) are the right level of detail, not
+  this org's real identifiers.
 - Official documentation: https://documentation.dnanexus.com/
 - dx-toolkit GitHub: https://github.com/dnanexus/dx-toolkit
