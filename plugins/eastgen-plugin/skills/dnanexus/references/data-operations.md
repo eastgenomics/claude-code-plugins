@@ -14,6 +14,11 @@ dx api file-xxxx listProjects
 
 Treat the project reported with `ADMINISTER` permission as the canonical source. Record and pass the object as `project-xxxx:file-xxxx` to `dx describe`, `dx download`, `dx run`, and SDK calls instead of relying on a bare ID (see the fuller treatment in SKILL.md).
 
+**Exception — inside a running job** (see `## Inside an App (Bash CLI)`, below): a bare
+file ID for one of the job's own declared inputs is fine as-is — the job's execution
+context already scopes it unambiguously, there's no multi-project lookup to do. This rule
+is about files looked up or referenced *outside* that context.
+
 **Under the restricted agent account** (see `SKILL.md` → **Authentication**): `listProjects` will never show `ADMINISTER`, since that account is capped at `CONTRIBUTE` — this heuristic never fires for it. Fall back to the project the file was originally uploaded/generated in, or ask a human with `ADMINISTER` access to confirm (see `SKILL.md` → **File ID Resolution**).
 
 ## Archival state
@@ -213,6 +218,10 @@ dxpy.set_security_context({
     "auth_token_type": "Bearer",
     "auth_token": os.environ["DNANEXUS_API_TOKEN"]
 })
+
+# Verify identity in THIS context — dx whoami (CLI) proves nothing about dxpy's
+# security context, they're set independently. See SKILL.md → Common Gotchas.
+print(dxpy.api.system_whoami()["id"])   # must be the agent account, not a personal one
 ```
 
 ### Uploading files

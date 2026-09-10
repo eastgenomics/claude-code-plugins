@@ -30,14 +30,21 @@ dxpy.set_security_context({
     "auth_token": os.environ["DNANEXUS_API_TOKEN"]
 })
 dxpy.set_workspace_id("project-xxxx")
+
+# Verify identity in THIS context — dx whoami (CLI) proves nothing about dxpy's
+# security context, they're set independently. See SKILL.md → Common Gotchas.
+print(dxpy.api.system_whoami()["id"])   # must be the agent account, not a personal one
 ```
 
 A bare `file-xxxx` can resolve in an unintended project if the same file exists in
 multiple projects — always qualify with the canonical project, per `SKILL.md` →
 **File ID Resolution** (see `references/data-operations.md` for the `listProjects`
-lookup). Every executable example below that references a file passes its project
-explicitly for this reason — don't drop the `project=`/second-argument qualifier when
-adapting them.
+lookup). Every `DXFile`, `download_dxfile`, and job-input `dxlink` example below passes
+its project explicitly for this reason — don't drop the `project=`/second-argument
+qualifier when adapting them. (The two-argument `dxlink` form is shown bare once, further
+below, purely to document the function's own signature — not as a usage pattern to copy;
+`file_close` needs no project argument since it's called immediately after
+creating/uploading the file, when its location is already unambiguous.)
 
 ## Core Classes
 

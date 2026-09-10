@@ -133,7 +133,7 @@ dx run app-swiss-army-knife --destination "project-xxxx:/folder/" ...   # RIGHT
 ```bash
 dx run app-swiss-army-knife \
     --destination "project-xxxx:/output/folder/" \
-    -iin="file-aaaa" -iin="file-bbbb" \
+    -iin="project-xxxx:file-aaaa" -iin="project-xxxx:file-bbbb" \
     -icmd="<bash commands>" \
     --name "my_job" --instance-type mem1_ssd1_v2_x4 \
     -y --brief
