@@ -77,7 +77,7 @@ never show `ADMINISTER` for any project, since the agent account is capped at
 alone in that case — fall back to the project the file was originally uploaded/generated
 in (from job/upload records), or ask a human with `ADMINISTER` access to confirm.
 
-This resolution step applies everywhere a file ID shows up below — job inputs, uploads, dxpy calls — not just here.
+This resolution step applies everywhere a file ID shows up below — job inputs, uploads, dxpy calls — not just here. Exception: an API method that takes the project as a separate positional argument (e.g. `dx api project-xxx unarchive '{"files": [...]}'`, where the file IDs in the array are inherently scoped to the project already given as the call's target) doesn't need the IDs inside it additionally qualified.
 
 ---
 
