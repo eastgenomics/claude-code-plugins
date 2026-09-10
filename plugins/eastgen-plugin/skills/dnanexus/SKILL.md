@@ -1,7 +1,7 @@
 ---
 name: dnanexus
 description: DNAnexus cloud genomics platform for East Genomics — building/deploying apps and applets, ad-hoc jobs via app-swiss-army-knife, dx/dxpy data operations, job and workflow monitoring, and the Jira/GitHub/Confluence release process for DNAnexus work. Use for dx CLI commands, dxapp.json, app-swiss-army-knife, or any org-emee_1 DNAnexus task.
-allowed-tools: Bash, Read, Write, Edit, Grep, Glob
+allowed-tools: Bash, Read, Write, Edit, Grep, Glob, mcp__plugin_eastgen-plugin_dnanexus-documentation__searchDocumentation, mcp__plugin_eastgen-plugin_dnanexus-documentation__getPage, mcp__plugin_eastgen-plugin_dnanexus-documentation__askQuestion, mcp__plugin_eastgen-plugin_dnanexus-documentation__sendFeedback
 ---
 
 # DNAnexus Integration (East Genomics)
@@ -326,5 +326,12 @@ never a stale earlier draft.
 
 ## Getting Help
 
+- **Official documentation is queryable directly** via the bundled `dnanexus-documentation`
+  MCP server — use `askQuestion` for a direct, sourced answer (permission models, API
+  behaviour, anything this skill doesn't cover or might be stale on), `searchDocumentation`
+  to browse matching pages, and `getPage` to read one in full. Prefer this over guessing
+  when a question is about official DNAnexus platform behaviour rather than this org's own
+  conventions. If you find the docs themselves wrong, outdated, or missing something while
+  using them, call `sendFeedback` to report it.
 - Official documentation: https://documentation.dnanexus.com/
 - dx-toolkit GitHub: https://github.com/dnanexus/dx-toolkit
