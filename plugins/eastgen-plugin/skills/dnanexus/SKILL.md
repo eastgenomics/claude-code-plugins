@@ -25,7 +25,12 @@ DNAnexus is a cloud platform for biomedical data analysis running on AWS `eu-cen
 
 Authenticate non-interactively with `$DNANEXUS_API_TOKEN` — `dx login --token "$DNANEXUS_API_TOKEN" --noprojects` (CLI) or dxpy's `dxpy.set_security_context({"auth_token_type": "Bearer", "auth_token": os.environ["DNANEXUS_API_TOKEN"]})` — never an interactive password login, and never hardcode the token value.
 
-**This token must belong to a dedicated agent/service DNAnexus account with delete permissions disabled** (`MEMBER` org role, `CONTRIBUTE` project permission — never `ADMINISTER` — with delete disabled via advanced permissions) — never a person's own DNAnexus login. Because it's capped at `CONTRIBUTE`, this account will never show `ADMINISTER` on any project — see the note in **File ID Resolution** below.
+**This token must belong to a dedicated agent/service DNAnexus account** (`MEMBER` org role, `CONTRIBUTE` project permission — never `ADMINISTER`) — never a person's own DNAnexus login. Because it's capped at `CONTRIBUTE`, this account will never show `ADMINISTER` on any project — see the note in **File ID Resolution** below.
+
+**What "delete disabled" actually means for this account — two separate mechanisms, don't conflate them:**
+- **Org-level `dataDeletion: Not Allowed`** (set on the account) blocks only the org-wide bypass (`overrideProjectAccess: true` — deleting in *any* project regardless of membership). It does **not** block ordinary deletion in a project the account is a normal `CONTRIBUTE` collaborator on.
+- **The actual delete gate is per-project**: a project's `protected` flag. `CONTRIBUTE` can delete whenever `protected` is `false` (the default); only `ADMINISTER` can delete when `protected` is `true`. This has been verified empirically, not just from docs — the agent account successfully deleted files (both one it uploaded and a pre-existing one) in an unprotected (`protected: false`) test project with no resistance at all.
+- **By deliberate policy, this is not applied uniformly across project tiers**: `003_` projects are disposable scratch space by design (already subject to their own auto-archive/delete lifecycle), so they are intentionally left unprotected — the agent account genuinely can delete there, and that's expected, not a bug. `001_`/`002_`/`004_` are expected to have `protected: true` (confirmed separately for `001_`/`002_`; `004_` — compliance-retained validation data — needs the same check). If you ever need to confirm whether delete is actually blocked in a specific project, check that project's own `protected` flag (`dx describe project-xxx --json | jq .protected`) — don't assume from the account's org-level settings alone.
 
 Account setup is a one-off human task (Claude cannot fetch this page itself): [Onboarding for Claude](https://cuhbioinformatics.atlassian.net/wiki/spaces/DV/pages/4739137538/Onboarding+for+Claude) (Confluence).
 
@@ -46,7 +51,7 @@ This table is the router — resolve the task to a row, then go straight to that
 | Navigate the Jira/GitHub/Confluence dev process | Driver/Navigator/Approver, GitFlow, Story lifecycle | `references/development-lifecycle.md` | Required release, test-evidence, and deployment records exist |
 | Raise the PR / respond to review comments | GitHub Flow, Jira-link guardrail | the `pr-workflow` skill (this plugin) | PR raised with the Jira key present; all review comments resolved |
 | Write up app testing evidence in Confluence | Documentation Vault dev-doc template | the `confluence-docs` skill, mode `create dev-doc` (this plugin) | Signed-off page describes the exact deployed version |
-| Set up (or rotate) the agent DNAnexus account/token — **human-performed, not something Claude does for itself** | New DNAnexus login + org invite | [Onboarding for Claude](https://cuhbioinformatics.atlassian.net/wiki/spaces/DV/pages/4739137538/Onboarding+for+Claude) (Confluence) | `dx whoami` shows the agent account; a human, authenticated as the agent (`dx login --token "$DNANEXUS_API_TOKEN"` — not their own personal login), attempts to delete one disposable test object the agent itself uploaded into a `003_` project and gets a permission error — a successful delete means the restriction isn't actually configured |
+| Set up (or rotate) the agent DNAnexus account/token — **human-performed, not something Claude does for itself** | New DNAnexus login + org invite | [Onboarding for Claude](https://cuhbioinformatics.atlassian.net/wiki/spaces/DV/pages/4739137538/Onboarding+for+Claude) (Confluence) | `dx whoami` shows the agent account; a human, authenticated as the agent (`dx login --token "$DNANEXUS_API_TOKEN"` — not their own personal login), attempts to delete one disposable test object the agent itself uploaded into a project with `protected: true` (**never** a `003_` project — those are deliberately unprotected and deletion there is expected to succeed) and gets a permission error — a successful delete means that project isn't actually protected |
 | A job/download fails with `InvalidState` or a 422 error | Check `archivalState` on the file | `## File Archival State` (below) | File is `live` (or successfully unarchived) and the job/download re-run succeeds |
 | Look up official DNAnexus platform behaviour (not this org's conventions) | `dnanexus-documentation` MCP (`askQuestion`/`searchDocumentation`/`getPage`) | "Getting Help", below | Answer is sourced to a doc page; the query sent contained no org-internal identifiers |
 
@@ -310,16 +315,15 @@ sed -i "s|export APPLET_FOO=.*|export APPLET_FOO=\"${NEW_ID}\"|" resource_ids.en
 **Under the restricted agent account** (see **Authentication**, above): confirmed —
 `--overwrite`/`-f` explicitly means "remove existing applet(s) of the same name in the
 destination folder" (source: [Index of dx commands](https://documentation.dnanexus.com/user/helpstrings-of-sdk-command-line-utilities)),
-i.e. it performs a delete. Deletion is gated by the project's `PROTECTED` flag: with
-`CONTRIBUTE`, an account can delete objects only when `PROTECTED` is `false`; the agent
-account's "delete disabled" setting is this flag set `true`, under which **only
-`ADMINISTER` can delete** (source: [Projects](https://documentation.dnanexus.com/getting-started/key-concepts/projects)).
-So **both paths in this account genuinely fail** when a same-named applet already exists
-at the destination — `--overwrite` needs delete rights it doesn't have, and a plain rebuild
-hits the same "already exists" error `--overwrite` exists to resolve. The actual fix: build
-to a fresh destination (new applet name, or a new dated folder) each time so there's never
-an existing object to remove, rather than rebuilding in place — reserve in-place rebuilds
-for a human with `ADMINISTER`.
+i.e. it performs a delete, which is gated by the destination project's own `protected`
+flag (see **Authentication**, above) — **not** by anything set on the account itself.
+In the common case (`003_` dev/test projects, which are deliberately left unprotected),
+`--overwrite` works exactly as documented — this is the normal, expected path for applet
+development. It only fails if the destination happens to be a project with
+`protected: true` (e.g. `004_`), in which case both `--overwrite` and a plain rebuild
+against an existing same-named applet fail the same way (no delete rights) — escalate to
+a human with `ADMINISTER` there rather than working around it, since applet rebuilds
+targeting a protected project are the exception, not the norm.
 
 **Applet `dxapp.json` template fields required by East Genomics** — see `references/configuration.md` for the full spec; the fields specific to East Genomics rather than the DNAnexus default are:
 
