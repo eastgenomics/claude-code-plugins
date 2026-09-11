@@ -36,6 +36,26 @@ Account setup is a one-off human task (Claude cannot fetch this page itself): [O
 
 Before running anything against real data, confirm `dx whoami` resolves to the agent account, not a personal one — see the Common Gotchas entry below.
 
+### Verifying the account is actually restricted, after setup or rotation
+
+None of these three checks alone rules out every misconfiguration — they check different,
+independent axes, run all three:
+
+1. **Org-level**: `dx describe user-<agent>` (or the org member list) shows org role
+   `MEMBER` with `dataDeletion: Not Allowed` — **not** `ADMIN`. This only rules out the
+   org-wide bypass axis; it says nothing about the account's permission on any specific
+   project.
+2. **Identity**: `dx whoami` shows the agent account, authenticated via
+   `dx login --token "$DNANEXUS_API_TOKEN"` (not a personal login).
+3. **Project-level delete test — use a dedicated scratch project created specifically for
+   this check, with `protected: true` set on it, never `001_`/`002_`/`004_` or any real
+   project.** A human, authenticated as the agent, uploads one disposable object then
+   attempts to delete it and confirms it gets a permission error. If the delete succeeds,
+   check the *test project's own* permission list for this account
+   (`dx describe project-xxx --json | jq '.permissions'`) — a project-scoped `ADMINISTER`
+   grant is invisible to check 1, which only sees the org axis, so a successful delete here
+   isn't explained by check 1 having already ruled out `ADMINISTER`.
+
 ## Quick Task Guide
 
 This table is the router — resolve the task to a row, then go straight to that reference rather than searching this file further. The "Done when" column is the completion bar: don't consider the task finished until it is met, and never treat a folder listing or a wrapper exit code as proof of the intended outcome.
@@ -51,7 +71,7 @@ This table is the router — resolve the task to a row, then go straight to that
 | Navigate the Jira/GitHub/Confluence dev process | Driver/Navigator/Approver, GitFlow, Story lifecycle | `references/development-lifecycle.md` | Required release, test-evidence, and deployment records exist |
 | Raise the PR / respond to review comments | GitHub Flow, Jira-link guardrail | the `pr-workflow` skill (this plugin) | PR raised with the Jira key present; all review comments resolved |
 | Write up app testing evidence in Confluence | Documentation Vault dev-doc template | the `confluence-docs` skill, mode `create dev-doc` (this plugin) | Signed-off page describes the exact deployed version |
-| Set up (or rotate) the agent DNAnexus account/token — **human-performed, not something Claude does for itself** | New DNAnexus login + org invite | [Onboarding for Claude](https://cuhbioinformatics.atlassian.net/wiki/spaces/DV/pages/4739137538/Onboarding+for+Claude) (Confluence) | Three checks, all must pass: (1) `dx describe user-<agent>` (or the org member list) shows org role `MEMBER` with `dataDeletion: Not Allowed` — **not** `ADMIN`; (2) `dx whoami` shows the agent account, authenticated via `dx login --token "$DNANEXUS_API_TOKEN"` (not a personal login); (3) a human, authenticated as the agent, attempts to delete one disposable test object the agent itself uploaded into a project with `protected: true` (**never** a `003_` project — deliberately unprotected, deletion there is expected to succeed) and gets a permission error. A successful delete in check (3) means either that project isn't actually protected, **or** the account has `ADMINISTER`/org-admin rights it shouldn't (which check (1) should already have caught) — don't assume it's only the project's fault |
+| Set up (or rotate) the agent DNAnexus account/token — **human-performed, not something Claude does for itself** | New DNAnexus login + org invite | [Onboarding for Claude](https://cuhbioinformatics.atlassian.net/wiki/spaces/DV/pages/4739137538/Onboarding+for+Claude) (Confluence) | See **Authentication** → "Verifying the account is actually restricted" — all three independent checks pass |
 | A job/download fails with `InvalidState` or a 422 error | Check `archivalState` on the file | `## File Archival State` (below) | File is `live` (or successfully unarchived) and the job/download re-run succeeds |
 | Look up official DNAnexus platform behaviour (not this org's conventions) | `dnanexus-documentation` MCP (`askQuestion`/`searchDocumentation`/`getPage`) | "Getting Help", below | Answer is sourced to a doc page; the query sent contained no org-internal identifiers |
 
