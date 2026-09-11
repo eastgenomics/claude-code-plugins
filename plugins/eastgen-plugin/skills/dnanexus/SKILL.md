@@ -41,24 +41,30 @@ Before running anything against real data, confirm `dx whoami` resolves to the a
 None of these three checks alone rules out every misconfiguration — they check different,
 independent axes, run all three:
 
-1. **Org-level**: `dx api org-emee_1 findMembers '{"id": ["user-<agent>"]}'` shows this
-   member's `level` as `MEMBER` with `dataDeletion: false` ("Not Allowed") — **not** `ADMIN`.
-   (`dx find org members org-emee_1 --json` lists everyone if you need to find the exact
-   user ID first, but only filters by level, not by member — use `findMembers` to target
-   one account directly.) This only rules out the org-wide bypass axis; it says nothing
-   about the account's permission on any specific project.
+1. **Org-level**: `dx api org-emee_1 findMembers '{"id": ["user-<agent>"]}'` (source:
+   [Organizations](https://documentation.dnanexus.com/developer/api/organizations)) shows
+   this member's `level` as `MEMBER` with `dataDeletion: false` ("Not Allowed") — **not**
+   `ADMIN`. (`dx find org members org-emee_1 --json` lists everyone if you need to find the
+   exact user ID first, but only filters by level, not by member — use `findMembers` to
+   target one account directly.) This only rules out the org-wide bypass axis; it says
+   nothing about the account's permission on any specific project.
 2. **Identity**: `dx whoami` shows the agent account, authenticated via
    `dx login --token "$DNANEXUS_API_TOKEN"` (not a personal login).
 3. **Project-level delete test — use a dedicated scratch project created specifically for
-   this check** (created and set to `protected: true` using your own admin-capable login,
-   then the agent account invited as `CONTRIBUTE` — **never `001_`/`002_`/`004_` or any
-   real project**). A human, authenticated as the agent, uploads one disposable object then
-   attempts to delete it and confirms it gets a permission error. If the delete succeeds,
-   check what level the agent actually has *on this specific test project* —
-   `dx describe project-xxx --json | jq '.level'` (the caller's own effective permission,
-   same field used in **File ID Resolution** below; **run this as the agent**, since the
-   full per-member `permissions` map on a project describe generally isn't returned to a
-   `CONTRIBUTE`-level caller) — a project-scoped `ADMINISTER` grant is invisible to check 1,
+   this check, never `001_`/`002_`/`004_` or any real project.** Using your own
+   admin-capable login: create the project, upload one disposable object into it, *then*
+   set `protected: true` and invite the agent account as `CONTRIBUTE` — in that order, so
+   an untested "can `CONTRIBUTE` even upload to a `protected` project?" question can't be
+   confused with the delete check itself. Switch to the agent and attempt to delete that
+   object; confirm it gets a permission error. If the delete succeeds, check what level the
+   agent actually has *on this specific test project* —
+   `dx describe project-xxx --json | jq '.level'`, run **as the agent** (the caller's own
+   effective permission — the same `ADMINISTER`/`CONTRIBUTE` vocabulary as the per-project
+   values in **File ID Resolution**'s `listProjects` output below, though returned here as
+   a single top-level `level` field rather than a project-ID map; the full per-member
+   `permissions` map on a project describe generally isn't returned to a `CONTRIBUTE`-level
+   caller, which is why `.level` and not `.permissions` is the field to check here) — a
+   project-scoped `ADMINISTER` grant is invisible to check 1,
    which only sees the org axis, so a successful delete here isn't explained by check 1
    having already ruled out `ADMINISTER`.
 
@@ -103,10 +109,13 @@ The project with `ADMINISTER` permission is the canonical source.
 `CONTRIBUTE`-only projects hold reference copies. Always record canonical IDs as
 `project-xxx:file-xxx` qualified strings — never bare `file-xxx` alone.
 
-**Under the restricted agent account** (see **Authentication**, above): `listProjects` will
-never show `ADMINISTER` for any project, since the agent account is capped at
-`CONTRIBUTE`. This heuristic can't identify the canonical project from permissions
-alone in that case — fall back to the project the file was originally uploaded/generated
+**Under the restricted agent account** (see **Authentication**, above): `listProjects`
+should never show `ADMINISTER` for any project, since the agent account is meant to be
+capped at `CONTRIBUTE` — if it does, that's a misconfiguration (the same one "Verifying
+the account is actually restricted" checks for), not a sign that the heuristic below is
+wrong; escalate it rather than treating the `ADMINISTER` entry as the canonical answer.
+Ordinarily, though, this heuristic can't identify the canonical project from permissions
+alone for this account — fall back to the project the file was originally uploaded/generated
 in (from job/upload records), or ask a human with `ADMINISTER` access to confirm.
 
 This resolution step applies everywhere a file ID shows up below — job inputs, uploads, dxpy calls — not just here. Exception: an API method that takes the project as a separate positional argument (e.g. `dx api project-xxx unarchive '{"files": [...]}'`, where the file IDs in the array are inherently scoped to the project already given as the call's target) doesn't need the IDs inside it additionally qualified.
