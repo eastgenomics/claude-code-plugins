@@ -25,7 +25,7 @@ DNAnexus is a cloud platform for biomedical data analysis running on AWS `eu-cen
 
 Authenticate non-interactively with `$DNANEXUS_API_TOKEN` — `dx login --token "$DNANEXUS_API_TOKEN" --noprojects` (CLI) or dxpy's `dxpy.set_security_context({"auth_token_type": "Bearer", "auth_token": os.environ["DNANEXUS_API_TOKEN"]})` — never an interactive password login, and never hardcode the token value.
 
-**This token must belong to a dedicated agent/service DNAnexus account** (`MEMBER` org role, `CONTRIBUTE` project permission — never `ADMINISTER`) — never a person's own DNAnexus login. Because it's capped at `CONTRIBUTE`, this account will never show `ADMINISTER` on any project — see the note in **File ID Resolution** below.
+**This token must belong to a dedicated agent/service DNAnexus account** (`MEMBER` org role, `CONTRIBUTE` project permission — never `ADMINISTER`) — never a person's own DNAnexus login. Because it's meant to be capped at `CONTRIBUTE`, this account should never show `ADMINISTER` on any project — verified by check 3 in "Verifying the account is actually restricted", below — see also the note in **File ID Resolution** below.
 
 **What "delete disabled" actually means for this account — two separate mechanisms, don't conflate them:**
 - **Org-level `dataDeletion: Not Allowed`** (set on the account) blocks only the org-wide bypass (`overrideProjectAccess: true` — deleting in *any* project regardless of membership). It does **not** block ordinary deletion in a project the account is a normal `CONTRIBUTE` collaborator on.
@@ -41,20 +41,26 @@ Before running anything against real data, confirm `dx whoami` resolves to the a
 None of these three checks alone rules out every misconfiguration — they check different,
 independent axes, run all three:
 
-1. **Org-level**: `dx describe user-<agent>` (or the org member list) shows org role
-   `MEMBER` with `dataDeletion: Not Allowed` — **not** `ADMIN`. This only rules out the
-   org-wide bypass axis; it says nothing about the account's permission on any specific
-   project.
+1. **Org-level**: `dx api org-emee_1 findMembers '{"id": ["user-<agent>"]}'` shows this
+   member's `level` as `MEMBER` with `dataDeletion: false` ("Not Allowed") — **not** `ADMIN`.
+   (`dx find org members org-emee_1 --json` lists everyone if you need to find the exact
+   user ID first, but only filters by level, not by member — use `findMembers` to target
+   one account directly.) This only rules out the org-wide bypass axis; it says nothing
+   about the account's permission on any specific project.
 2. **Identity**: `dx whoami` shows the agent account, authenticated via
    `dx login --token "$DNANEXUS_API_TOKEN"` (not a personal login).
 3. **Project-level delete test — use a dedicated scratch project created specifically for
-   this check, with `protected: true` set on it, never `001_`/`002_`/`004_` or any real
-   project.** A human, authenticated as the agent, uploads one disposable object then
+   this check** (created and set to `protected: true` using your own admin-capable login,
+   then the agent account invited as `CONTRIBUTE` — **never `001_`/`002_`/`004_` or any
+   real project**). A human, authenticated as the agent, uploads one disposable object then
    attempts to delete it and confirms it gets a permission error. If the delete succeeds,
-   check the *test project's own* permission list for this account
-   (`dx describe project-xxx --json | jq '.permissions'`) — a project-scoped `ADMINISTER`
-   grant is invisible to check 1, which only sees the org axis, so a successful delete here
-   isn't explained by check 1 having already ruled out `ADMINISTER`.
+   check what level the agent actually has *on this specific test project* —
+   `dx describe project-xxx --json | jq '.level'` (the caller's own effective permission,
+   same field used in **File ID Resolution** below; **run this as the agent**, since the
+   full per-member `permissions` map on a project describe generally isn't returned to a
+   `CONTRIBUTE`-level caller) — a project-scoped `ADMINISTER` grant is invisible to check 1,
+   which only sees the org axis, so a successful delete here isn't explained by check 1
+   having already ruled out `ADMINISTER`.
 
 ## Quick Task Guide
 
