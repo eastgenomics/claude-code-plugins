@@ -1,7 +1,7 @@
 ---
 name: dnanexus
 description: DNAnexus cloud genomics platform for East Genomics — building/deploying apps and applets, ad-hoc jobs via app-swiss-army-knife, dx/dxpy data operations, job and workflow monitoring, and the Jira/GitHub/Confluence release process for DNAnexus work. Use for dx CLI commands, dxapp.json, app-swiss-army-knife, or any org-emee_1 DNAnexus task.
-allowed-tools: Bash, Read, Write, Edit, Grep, Glob
+allowed-tools: Bash, Read, Write, Edit, Grep, Glob, mcp__plugin_eastgen-plugin_dnanexus-documentation__searchDocumentation, mcp__plugin_eastgen-plugin_dnanexus-documentation__getPage, mcp__plugin_eastgen-plugin_dnanexus-documentation__askQuestion
 ---
 
 # DNAnexus Integration (East Genomics)
@@ -25,11 +25,48 @@ DNAnexus is a cloud platform for biomedical data analysis running on AWS `eu-cen
 
 Authenticate non-interactively with `$DNANEXUS_API_TOKEN` — `dx login --token "$DNANEXUS_API_TOKEN" --noprojects` (CLI) or dxpy's `dxpy.set_security_context({"auth_token_type": "Bearer", "auth_token": os.environ["DNANEXUS_API_TOKEN"]})` — never an interactive password login, and never hardcode the token value.
 
-**This token must belong to a dedicated agent/service DNAnexus account with delete permissions disabled** (`MEMBER` org role, `CONTRIBUTE` project permission — never `ADMINISTER` — with delete disabled via advanced permissions) — never a person's own DNAnexus login. Because it's capped at `CONTRIBUTE`, this account will never show `ADMINISTER` on any project — see the note in **File ID Resolution** below.
+**This token must belong to a dedicated agent/service DNAnexus account** (`MEMBER` org role, `CONTRIBUTE` project permission — never `ADMINISTER`) — never a person's own DNAnexus login. Check 3 in "Verifying the account is actually restricted" (below) confirms the account can't delete in one purpose-built `protected` test project; it doesn't enumerate every project the account has access to, so a stray project-scoped `ADMINISTER` grant elsewhere wouldn't be caught by it — see also the note in **File ID Resolution** below.
+
+**What "delete disabled" actually means for this account — two separate mechanisms, don't conflate them:**
+- **Org-level `dataDeletion: Not Allowed`** (set on the account) blocks only the org-wide bypass (`overrideProjectAccess: true` — deleting in *any* project regardless of membership). It does **not** block ordinary deletion in a project the account is a normal `CONTRIBUTE` collaborator on.
+- **The actual delete gate is per-project**: a project's `protected` flag. `CONTRIBUTE` can delete whenever `protected` is `false` (the default); only `ADMINISTER` can delete when `protected` is `true`. This has been verified empirically, not just from docs — the agent account successfully deleted files (both one it uploaded and a pre-existing one) in an unprotected (`protected: false`) test project with no resistance at all.
+- **By deliberate policy, this is not applied uniformly across project tiers**: `003_` projects are disposable scratch space by design (already subject to their own auto-archive/delete lifecycle), so they are intentionally left unprotected — the agent account genuinely can delete there, and that's expected, not a bug. `001_`/`002_`/`004_` are expected to have `protected: true` (confirmed separately for `001_`/`002_`; `004_` — compliance-retained validation data — needs the same check). If you ever need to confirm whether delete is actually blocked in a specific project, check that project's own `protected` flag (`dx describe project-xxx --json | jq .protected`) — don't assume from the account's org-level settings alone.
 
 Account setup is a one-off human task (Claude cannot fetch this page itself): [Onboarding for Claude](https://cuhbioinformatics.atlassian.net/wiki/spaces/DV/pages/4739137538/Onboarding+for+Claude) (Confluence).
 
 Before running anything against real data, confirm `dx whoami` resolves to the agent account, not a personal one — see the Common Gotchas entry below.
+
+### Verifying the account is actually restricted, after setup or rotation
+
+None of these three checks alone rules out every misconfiguration — they check different,
+independent axes, run all three:
+
+1. **Org-level**: `dx api org-emee_1 findMembers '{"id": ["user-<agent>"]}'` (source:
+   [Organizations](https://documentation.dnanexus.com/developer/api/organizations)) shows
+   this member's `level` as `MEMBER` with `dataDeletion: false` ("Not Allowed") — **not**
+   `ADMIN`. (`dx find org members org-emee_1 --json` lists everyone if you need to find the
+   exact user ID first, but only filters by level, not by member — use `findMembers` to
+   target one account directly.) This only rules out the org-wide bypass axis; it says
+   nothing about the account's permission on any specific project.
+2. **Identity**: `dx whoami` shows the agent account, authenticated via
+   `dx login --token "$DNANEXUS_API_TOKEN"` (not a personal login).
+3. **Project-level delete test — use a dedicated scratch project created specifically for
+   this check, never `001_`/`002_`/`004_` or any real project.** Using your own
+   admin-capable login: create the project, upload one disposable object into it, *then*
+   set `protected: true` and invite the agent account as `CONTRIBUTE` — in that order, so
+   an untested "can `CONTRIBUTE` even upload to a `protected` project?" question can't be
+   confused with the delete check itself. Switch to the agent and attempt to delete that
+   object; confirm it gets a permission error. If the delete succeeds, check what level the
+   agent actually has *on this specific test project* —
+   `dx describe project-xxx --json | jq '.level'`, run **as the agent** (the caller's own
+   effective permission — the same `ADMINISTER`/`CONTRIBUTE` vocabulary as the per-project
+   values in **File ID Resolution**'s `listProjects` output below, though returned here as
+   a single top-level `level` field rather than a project-ID map; the full per-member
+   `permissions` map on a project describe generally isn't returned to a `CONTRIBUTE`-level
+   caller, which is why `.level` and not `.permissions` is the field to check here) — a
+   project-scoped `ADMINISTER` grant is invisible to check 1,
+   which only sees the org axis, so a successful delete here isn't explained by check 1
+   having already ruled out `ADMINISTER`.
 
 ## Quick Task Guide
 
@@ -46,8 +83,9 @@ This table is the router — resolve the task to a row, then go straight to that
 | Navigate the Jira/GitHub/Confluence dev process | Driver/Navigator/Approver, GitFlow, Story lifecycle | `references/development-lifecycle.md` | Required release, test-evidence, and deployment records exist |
 | Raise the PR / respond to review comments | GitHub Flow, Jira-link guardrail | the `pr-workflow` skill (this plugin) | PR raised with the Jira key present; all review comments resolved |
 | Write up app testing evidence in Confluence | Documentation Vault dev-doc template | the `confluence-docs` skill, mode `create dev-doc` (this plugin) | Signed-off page describes the exact deployed version |
-| Set up (or rotate) the agent DNAnexus account/token — **human-performed, not something Claude does for itself** | New DNAnexus login + org invite | [Onboarding for Claude](https://cuhbioinformatics.atlassian.net/wiki/spaces/DV/pages/4739137538/Onboarding+for+Claude) (Confluence) | `dx whoami` shows the agent account; a human, authenticated as the agent (`dx login --token "$DNANEXUS_API_TOKEN"` — not their own personal login), attempts to delete one disposable test object the agent itself uploaded into a `003_` project and gets a permission error — a successful delete means the restriction isn't actually configured |
+| Set up (or rotate) the agent DNAnexus account/token — **human-performed, not something Claude does for itself** | New DNAnexus login + org invite | [Onboarding for Claude](https://cuhbioinformatics.atlassian.net/wiki/spaces/DV/pages/4739137538/Onboarding+for+Claude) (Confluence) | See **Authentication** → "Verifying the account is actually restricted" — all three independent checks pass |
 | A job/download fails with `InvalidState` or a 422 error | Check `archivalState` on the file | `## File Archival State` (below) | File is `live` (or successfully unarchived) and the job/download re-run succeeds |
+| Look up official DNAnexus platform behaviour (not this org's conventions) | `dnanexus-documentation` MCP (`askQuestion`/`searchDocumentation`/`getPage`) | "Getting Help", below | Answer is sourced to a doc page; the query sent contained no org-internal identifiers |
 
 ---
 
@@ -71,10 +109,13 @@ The project with `ADMINISTER` permission is the canonical source.
 `CONTRIBUTE`-only projects hold reference copies. Always record canonical IDs as
 `project-xxx:file-xxx` qualified strings — never bare `file-xxx` alone.
 
-**Under the restricted agent account** (see **Authentication**, above): `listProjects` will
-never show `ADMINISTER` for any project, since the agent account is capped at
-`CONTRIBUTE`. This heuristic can't identify the canonical project from permissions
-alone in that case — fall back to the project the file was originally uploaded/generated
+**Under the restricted agent account** (see **Authentication**, above): `listProjects`
+should never show `ADMINISTER` for any project, since the agent account is meant to be
+capped at `CONTRIBUTE` — if it does, that's a misconfiguration (the same one "Verifying
+the account is actually restricted" checks for), not a sign that the heuristic below is
+wrong; escalate it rather than treating the `ADMINISTER` entry as the canonical answer.
+Ordinarily, though, this heuristic can't identify the canonical project from permissions
+alone for this account — fall back to the project the file was originally uploaded/generated
 in (from job/upload records), or ask a human with `ADMINISTER` access to confirm.
 
 This resolution step applies everywhere a file ID shows up below — job inputs, uploads, dxpy calls — not just here. Exception: an API method that takes the project as a separate positional argument (e.g. `dx api project-xxx unarchive '{"files": [...]}'`, where the file IDs in the array are inherently scoped to the project already given as the call's target) doesn't need the IDs inside it additionally qualified.
@@ -102,13 +143,11 @@ dx api project-xxx unarchive '{"files": ["file-aaa", "file-bbb"]}'
 ```
 
 **Under the restricted agent account** (`CONTRIBUTE`, no `ADMINISTER` — see **Authentication**,
-above): whether `unarchive` succeeds with only `CONTRIBUTE` hasn't been verified — and this
-applies to **both** paths above, not just the direct command: step 2 of the
-clone-then-unarchive fallback (`dx api your-project unarchive ...`) runs against
-`your-project`, which is equally a project the agent doesn't `ADMINISTER`, so it isn't a
-working escape hatch either. If either fails with a permission error, escalate to a human
-with `ADMINISTER` access rather than attempting to self-elevate permissions or work around
-it; confirm the actual behaviour once and update this note.
+above): confirmed — `CONTRIBUTE` is sufficient for `/project-xxxx/unarchive`; it is not
+gated behind `ADMINISTER` or a project's `protected` flag at all, which is a separate
+permission (source: [Project Permissions and Sharing](https://documentation.dnanexus.com/developer/api/data-containers/project-permissions-and-sharing)).
+The clone-then-unarchive fallback (step 2 above) is unnecessary for this account — unarchive
+directly in place instead of cloning first.
 
 ---
 
@@ -165,7 +204,7 @@ The `resources/` directory is **overlaid onto the execution filesystem** at buil
 
 Production release of an app must go through `dx build --app` + `dx publish` and satisfy the org's code-review checklist (app not applet, `eggd_` prefix, `org-emee_1`-only access, `aws:eu-central-1`, timeout set, `assetDepends` preferred over manual installs, `set -e` minimum, pinned deps). See `references/development-lifecycle.md` for the full checklist and the Jira/GitHub process around it.
 
-**Under the restricted agent account** (see **Authentication**, above): app build/publish rights are governed by app-level developer/publish ACLs, not project `CONTRIBUTE` — whether a `MEMBER`-role account can `dx build --app`/`dx publish` at all hasn't been verified. If either fails with a permission error, escalate to a human rather than working around it; confirm the actual behaviour once and update this note.
+**Under the restricted agent account** (see **Authentication**, above): confirmed — `/app-xxxx/publish` is gated by app-creator/developer authorization, not project `ADMINISTER` or org role (source: [Apps](https://documentation.dnanexus.com/developer/api/running-analyses/apps)). So the agent account can `dx build --app` + `dx publish` **only for an app it built itself** (making it the creator) — it has no publish rights over an app someone else (a human, or a different account) created, even with `CONTRIBUTE` on the project. If the agent is asked to publish an app it didn't build, that will fail with a permission error; escalate to whoever built it (or have the agent build it in the first place) rather than trying to work around it.
 
 ---
 
@@ -177,8 +216,9 @@ These cut across app development, swiss-army-knife jobs, and job execution alike
 
 A stale shell session, a wrong/unset env var, or a leftover interactive `dx login` can
 silently leave `dx` authenticated as a person's own DNAnexus account instead of the
-restricted agent account — which has full personal permissions, delete included. Check
-before running anything against real data:
+restricted agent account — which has full personal permissions, including `ADMINISTER`
+on projects and any org-wide delete override, not just the capped `CONTRIBUTE` access
+the agent account is meant to have. Check before running anything against real data:
 
 ```bash
 dx whoami
@@ -308,13 +348,19 @@ NEW_ID=$(dx build applet_dir/ --destination "project-xxx:/applets/" \
 sed -i "s|export APPLET_FOO=.*|export APPLET_FOO=\"${NEW_ID}\"|" resource_ids.env
 ```
 
-**Under the restricted agent account** (see **Authentication**, above): `--overwrite` implies
-removing the prior applet object, which hasn't been verified against the delete-disabled
-restriction. Building without `--overwrite` isn't a confirmed-safe fallback either — `dx
-build` errors on a same-named object already at the destination unless `--overwrite` (or
-`--archive`) is passed, which is exactly the repeated-build case this gotcha covers. If
-either path fails, don't try further workarounds — escalate to a human to confirm the
-actual behaviour once and update this note.
+**Under the restricted agent account** (see **Authentication**, above): confirmed —
+`--overwrite`/`-f` explicitly means "remove existing applet(s) of the same name in the
+destination folder" (source: [Index of dx commands](https://documentation.dnanexus.com/user/helpstrings-of-sdk-command-line-utilities)),
+i.e. it performs a delete, which is gated by the destination project's own `protected`
+flag (see **Authentication**, above) — **not** by anything set on the account itself.
+In the common case (`003_` dev/test projects, which are deliberately left unprotected),
+`--overwrite` works exactly as documented — this is the normal, expected path for applet
+development. It only fails if the destination happens to be a genuinely `protected: true`
+project (`001_`/`002_` are confirmed to be; check before assuming `004_` is too — see
+**Authentication**), in which case both `--overwrite` and a plain rebuild against an
+existing same-named applet fail the same way (no delete rights) — escalate to a human
+with `ADMINISTER` there rather than working around it, since applet rebuilds targeting a
+protected project are the exception, not the norm.
 
 **Applet `dxapp.json` template fields required by East Genomics** — see `references/configuration.md` for the full spec; the fields specific to East Genomics rather than the DNAnexus default are:
 
@@ -391,6 +437,21 @@ never a stale earlier draft.
 
 ## Getting Help
 
+- **Official documentation is queryable directly** via the bundled `dnanexus-documentation`
+  MCP server — use `askQuestion` for a direct, sourced answer (permission models, API
+  behaviour, anything this skill doesn't cover or might be stale on), `searchDocumentation`
+  to browse matching pages, and `getPage` to read one in full. Prefer this over guessing
+  when a question is about official DNAnexus platform behaviour rather than this org's own
+  conventions. **Every query sent to this server is free text delivered to a third party
+  (GitBook/DNAnexus) — never include org-internal identifiers in it**: no
+  `project-xxx`/`file-xxx`/`job-xxx` IDs, no `org-emee_1` project or app names, no
+  patient/sample data. Describe things in the abstract (what you observed, not which real
+  object it happened to) — DNAnexus's own generic placeholders (`project-xxxx`, `file-xxxx`)
+  are the right level of detail, not this org's real identifiers. If you find the docs
+  themselves wrong, outdated, or missing something, `sendFeedback` can report it — that tool
+  is deliberately **not** in this skill's pre-authorized `allowed-tools`, so invoking it goes
+  through the normal permission prompt instead of skipping it; don't work around that by
+  asking the user to invoke it in your place.
 - Official documentation: https://documentation.dnanexus.com/
 - dx-toolkit GitHub: https://github.com/dnanexus/dx-toolkit
 - Agent account setup (email alias, org invite, token generation): [Onboarding for Claude](https://cuhbioinformatics.atlassian.net/wiki/spaces/DV/pages/4739137538/Onboarding+for+Claude) (Confluence, human-only — not fetchable by Claude)

@@ -39,7 +39,7 @@ dx api project-xxxx unarchive '{"files": ["file-aaaa", "file-bbbb"]}'
 
 If you do not administer the source project, clone the file into an administered project first (`dx cp source:file-xxxx dest:/folder/`), then unarchive the clone. Do not submit work until the required file is `live`.
 
-**Under the restricted agent account** (see `SKILL.md` → **Authentication**): whether `unarchive` succeeds with only `CONTRIBUTE` hasn't been verified, and this applies to **both** routes above — the clone-then-unarchive fallback is no escape hatch either, since the destination project is equally one the agent doesn't `ADMINISTER`. If either fails with a permission error, escalate to a human with `ADMINISTER` access rather than attempting it (see `SKILL.md` → **File Archival State**).
+**Under the restricted agent account** (see `SKILL.md` → **Authentication**): confirmed — `CONTRIBUTE` is sufficient for `/project-xxxx/unarchive`; it's gated separately from `ADMINISTER` and from the account's disabled-delete restriction (source: [Project Permissions and Sharing](https://documentation.dnanexus.com/developer/api/data-containers/project-permissions-and-sharing)). The clone-then-unarchive fallback above is unnecessary for this account — unarchive directly rather than cloning first (see `SKILL.md` → **File Archival State**).
 
 ## Inside an App (Bash CLI)
 
