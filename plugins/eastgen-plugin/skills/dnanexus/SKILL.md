@@ -25,7 +25,7 @@ DNAnexus is a cloud platform for biomedical data analysis running on AWS `eu-cen
 
 Authenticate non-interactively with `$DNANEXUS_API_TOKEN` — `dx login --token "$DNANEXUS_API_TOKEN" --noprojects` (CLI) or dxpy's `dxpy.set_security_context({"auth_token_type": "Bearer", "auth_token": os.environ["DNANEXUS_API_TOKEN"]})` — never an interactive password login, and never hardcode the token value.
 
-**This token must belong to a dedicated agent/service DNAnexus account** (`MEMBER` org role, `CONTRIBUTE` project permission — never `ADMINISTER`) — never a person's own DNAnexus login. Because it's meant to be capped at `CONTRIBUTE`, this account should never show `ADMINISTER` on any project — verified by check 3 in "Verifying the account is actually restricted", below — see also the note in **File ID Resolution** below.
+**This token must belong to a dedicated agent/service DNAnexus account** (`MEMBER` org role, `CONTRIBUTE` project permission — never `ADMINISTER`) — never a person's own DNAnexus login. Check 3 in "Verifying the account is actually restricted" (below) confirms the account can't delete in one purpose-built `protected` test project; it doesn't enumerate every project the account has access to, so a stray project-scoped `ADMINISTER` grant elsewhere wouldn't be caught by it — see also the note in **File ID Resolution** below.
 
 **What "delete disabled" actually means for this account — two separate mechanisms, don't conflate them:**
 - **Org-level `dataDeletion: Not Allowed`** (set on the account) blocks only the org-wide bypass (`overrideProjectAccess: true` — deleting in *any* project regardless of membership). It does **not** block ordinary deletion in a project the account is a normal `CONTRIBUTE` collaborator on.
