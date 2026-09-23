@@ -5,6 +5,7 @@
       "Bash(gh alias:*)",
       "Bash(gh extension:*)",
       "Bash(gh ext:*)",
+      "Bash(gh extensions:*)",
       "Bash(gh config set:*)",
       "Bash(gh repo delete:*)",
       "Bash(gh repo archive:*)",
