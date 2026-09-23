@@ -1,6 +1,16 @@
 {
   "permissions": {
-    "allow": ["Bash(gh *)"]
+    "allow": ["Bash(gh *)"],
+    "deny": [
+      "Bash(gh repo delete:*)",
+      "Bash(gh repo archive:*)",
+      "Bash(gh secret:*)",
+      "Bash(gh workflow run:*)",
+      "Bash(gh workflow disable:*)",
+      "Bash(gh workflow delete:*)",
+      "Bash(gh release delete:*)",
+      "Bash(gh auth logout:*)"
+    ]
   },
   "enabledPlugins": {
     "eastgen-plugin@eastgenomics": true
