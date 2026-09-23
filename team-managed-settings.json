@@ -1,4 +1,24 @@
 {
+  "permissions": {
+    "allow": ["Bash(gh *)"],
+    "deny": [
+      "Bash(gh alias:*)",
+      "Bash(gh extension:*)",
+      "Bash(gh ext:*)",
+      "Bash(gh extensions:*)",
+      "Bash(gh config set:*)",
+      "Bash(gh repo delete:*)",
+      "Bash(gh repo archive:*)",
+      "Bash(gh secret:*)",
+      "Bash(gh workflow run:*)",
+      "Bash(gh workflow disable:*)",
+      "Bash(gh workflow delete:*)",
+      "Bash(gh release delete:*)",
+      "Bash(gh release delete-asset:*)",
+      "Bash(gh issue delete:*)",
+      "Bash(gh auth logout:*)"
+    ]
+  },
   "enabledPlugins": {
     "eastgen-plugin@eastgenomics": true
   },
@@ -14,6 +34,7 @@
   "sandbox": {
     "enabled": true,
     "failIfUnavailable": true,
-    "allowUnsandboxedCommands": false
+    "allowUnsandboxedCommands": false,
+    "excludedCommands": ["gh *", "git push *"]
   }
 }
