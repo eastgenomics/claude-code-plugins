@@ -1,4 +1,7 @@
 {
+  "permissions": {
+    "allow": ["Bash(gh *)"]
+  },
   "enabledPlugins": {
     "eastgen-plugin@eastgenomics": true
   },
@@ -14,6 +17,7 @@
   "sandbox": {
     "enabled": true,
     "failIfUnavailable": true,
-    "allowUnsandboxedCommands": false
+    "allowUnsandboxedCommands": false,
+    "excludedCommands": ["gh *"]
   }
 }
