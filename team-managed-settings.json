@@ -18,6 +18,6 @@
     "enabled": true,
     "failIfUnavailable": true,
     "allowUnsandboxedCommands": false,
-    "excludedCommands": ["gh *"]
+    "excludedCommands": ["gh *", "git push *"]
   }
 }
