@@ -38,6 +38,8 @@ Read the returned body (`data.body.value`) to:
 - Identify table structure (how many rows, what labels are in the first column) before editing a specific cell
 - Note any `data-local-id` / `data-color` / other attributes on the node you're changing — preserve everything you're not explicitly told to change, verbatim
 
+If the fetch didn't return `metadata.hasSpaceInstructions: false`, load the space instructions per `../SKILL.md` → Access before editing.
+
 Only write the edit once you've seen the actual body.
 
 ---
@@ -55,7 +57,7 @@ updateConfluenceContent(cloudId: "cuhbioinformatics.atlassian.net", contentId: "
 **Safety rules:**
 - Include enough surrounding markup that the targeted text is uniquely identified before changing it
 - Change only the specific nodes that need to change, keeping everything else — including `data-local-id` attributes — verbatim
-- Re-fetch after the update and confirm the change landed as intended
+- Re-fetch after the update and confirm the change landed as intended — compare the whole body with the original, not just the edited span (the server can re-serialise other markup; see HTML_DIALECT.md → Update Mechanics)
 
 ---
 
@@ -67,7 +69,7 @@ Applies to all document types. Updates the status lozenge, the Approved by cell,
 
 Fetch the body, then apply the applicable changes before sending it back once:
 
-1. Status lozenge → `<span data-type="status" data-color="yellow">DRAFT</span>` becomes `<span data-type="status" data-color="green">APPROVED</span>`
+1. Status lozenge → change only `data-color="yellow"` → `"green"` and the text `DRAFT` → `APPROVED`; keep every other attribute on the `<span>` (e.g. `data-status-style="bold"`, `data-local-id`) verbatim
 2. "Approved by" table cell → find the `<tr>` whose first `<td>` is `<p>Approved by</p>`, replace the second `<td>`'s contents (or the `<span data-type="placeholder">...</span>` inside it) with the approver's name
 3. "Approved and locked date" table cell (Manual / Policy only) → same pattern, replace with the date (`YYYY-MM-DD`)
 
@@ -113,7 +115,7 @@ edits: [
 
 Include the third edit only if the fetched header table actually has an "Approved and locked date" row (Manual / Policy pages); drop it for Development & Testing and Controlled File pages.
 
-- Target the **`<p>` inside the value cell, not the `<td>`** — replacing a `<td>` with a `<p>` deletes the cell. Run once with `dryRun: true` and check the echoed table before the real call.
+- Target the **`<p>` inside the value cell, not the `<td>`** — replacing a `<td>` with a `<p>` deletes the cell. Run once with `dryRun: true` and compare the whole echoed body (not just the table) with the original before the real call.
 - `<time>` is re-rendered as a long date ("October 31, 2026").
 - Re-fetch afterwards and confirm.
 
