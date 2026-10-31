@@ -30,6 +30,8 @@ Every PR body links its Jira issue — see the Jira link guardrail below.
 
 ## Step 1 — Branch & commit
 
+Local git (`status`, `diff`, `checkout`, `add`, `commit`) works fine inside the sandbox and can be chained. Only `gh` and `git push` need single bare calls — see the sandbox guardrail.
+
 ```bash
 git status && git diff          # understand what's changed
 git checkout -b <kebab-name>    # descriptive branch name
@@ -65,7 +67,7 @@ If still not clean after 10 rounds, stop and report the outstanding findings to 
 
 Resolve the Jira link (see Guardrails) before creating the PR.
 
-Write the PR body to a file first (Write tool, e.g. `<scratchpad>/pr-body.md`):
+Write the PR body to a file first (Write tool, e.g. `<scratchpad>/pr-body.md`). Throughout this skill, `<scratchpad>` means the session's scratchpad directory from the environment context (an absolute path), or `$TMPDIR` if there is none:
 
 ```markdown
 ## Summary
@@ -77,12 +79,21 @@ Jira: <issue-url>
 - [ ] check
 ```
 
-Then run each of these as its **own** Bash call (see the sandbox guardrail):
+Then run each of these as its **own** Bash call, from the repo's working directory (see the sandbox guardrail).
+
+First push (opens the PR):
 
 ```bash
-git push -u origin <branch-name>          # first time
-git push                                   # subsequent rounds
+git push -u origin <branch-name>
+```
+```bash
 gh pr create --title "<70 chars>" --body-file <scratchpad>/pr-body.md
+```
+
+Later rounds (the PR already exists, so only push):
+
+```bash
+git push
 ```
 Print the PR URL. Stop — wait for explicit instruction before proceeding.
 
@@ -92,7 +103,7 @@ Print the PR URL. Stop — wait for explicit instruction before proceeding.
 
 Triggered when a reviewer has posted comments on the open PR. Before anything else, check the PR carries its Jira link (see Guardrails). Then fetch all comments, apply fixes locally, then **re-run the full review-fix loop (Step 2)** before pushing.
 
-Fetch comments:
+Fetch comments (two separate Bash calls):
 ```bash
 gh api repos/{owner}/{repo}/pulls/{pr_number}/comments
 gh api repos/{owner}/{repo}/issues/{pr_number}/comments
@@ -102,7 +113,7 @@ Triage each comment as **Fix**, **Explain**, or **Skip** (bot noise). Apply all 
 
 - Reply endpoint: `repos/{owner}/{repo}/pulls/{pr_number}/comments/{comment_id}/replies`
   ⚠️ Must include `{pr_number}` in path — omitting it returns HTTP 404.
-- Write `{"body": "<text>"}` to a JSON file (Write tool, or `json.dump` in a separate Python call), then `gh api repos/{owner}/{repo}/pulls/{pr_number}/comments/{comment_id}/replies --method POST --input <file>` as a bare call — not `-f body=` (backticks and newlines break shell escaping), and not `--input -` from a pipe or heredoc (that keeps the call sandboxed).
+- Write `{"body": "<text>"}` to a JSON file (Write tool, or `json.dump` in a separate Python call), then `gh api repos/{owner}/{repo}/pulls/{pr_number}/comments/{comment_id}/replies --method POST --input <scratchpad>/reply.json` as a bare call — not `-f body=` (backticks and newlines break shell escaping), and not `--input -` from a pipe or heredoc (that keeps the call sandboxed).
 - Fix reply: `"Fixed in \`{hash}\` — {one sentence}."`
 - Explain reply: concise reasoning, no apology.
 
