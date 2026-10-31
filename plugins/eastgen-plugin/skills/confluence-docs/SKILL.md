@@ -55,12 +55,15 @@ Tools used by the Confluence skills:
 | `createConfluenceContent` | primary | Create a page: `parent: {spaceId, parentContentId}`, `contentType: "page"`, `title`, `body: {format:"html", value:"…"}` |
 | `updateConfluenceContent` | primary | Update a page: either `body: {format:"html", value}` (full replace) **or** `edits: [...]` (granular), plus the `snapshotToken` from the latest fetch. `dryRun: true` validates without saving. |
 | `searchConfluence` | primary | Find pages by title/text/label (CQL) |
+| `atlassianUserInfo` | primary | Current user's `accountId` (e.g. for the Mermaid macro) |
 | `getConfluenceContentDescendants` (`contentId`, `depth`) | `executeRead` | List child pages |
 | `getConfluenceSpace` (`spaceIdOrKey`) | `executeRead` | Space ID/key/homepage + space instructions |
 | `createConfluenceAttachment` | `executeWrite` | Prepare a file upload (returns a curl command) — see HTML_DIALECT.md → Images and Attachments |
 | `listConfluenceAttachments` / `getConfluenceAttachment` / `downloadConfluenceAttachment` | `executeRead` | Inspect / download attachments |
 | `getContentFormatGuide` (`toolName: "createConfluencePage"` / `"updateConfluencePage"`) | `executeRead` | Canonical HTML format reference — call before authoring unfamiliar markup |
 | `getConfluencePersonalSpace` | `executeRead` | The current user's personal space (ID and `~` key) — use it for throwaway test pages, never DV |
+
+Parameter casing is mixed, and that is the real schema: `getConfluenceContent` takes snake_case (`content_id`, `content_format`), while `createConfluenceContent` / `updateConfluenceContent` take camelCase (`contentId`, `contentType`, `snapshotToken`) — copy names exactly, don't normalise them.
 
 Always pass `cloudId` explicitly (the site URL `cuhbioinformatics.atlassian.net` works). `getConfluenceContent` returns `metadata.hasSpaceInstructions`; if `true`, load them with `getConfluenceSpace` (via `executeRead`) and apply them to the whole body. (`getConfluenceSpace` for `DV` returned no instructions when last checked.)
 
