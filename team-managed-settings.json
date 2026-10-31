@@ -36,5 +36,6 @@
     "failIfUnavailable": true,
     "allowUnsandboxedCommands": false,
     "excludedCommands": ["gh *", "git push *"]
-  }
+  },
+  "claudeMd": "## Sandbox: gh and git push\nOnly `gh *` and `git push *` run outside the sandbox, and only as a single plain Bash call. A `cd` first, chaining (&&, ;, |), a redirect, a heredoc or pipe into stdin, $(...), `git -C`, or calling gh from Python/a script keeps the call sandboxed, where gh fails with 401/\"token invalid\" and git push with \"could not read Username\". Run them from the repo's working directory, pass PR bodies and API payloads with --body-file <file> / --input <file>, and don't conclude they can't work until a plain call has failed."
 }
