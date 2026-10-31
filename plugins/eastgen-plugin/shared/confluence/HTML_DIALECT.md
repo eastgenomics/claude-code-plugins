@@ -47,7 +47,7 @@ Don't rely on native `toc` or `children`-display macros for auto-built navigatio
 v2 supports two safe write styles; both start from a fresh `getConfluenceContent(content_format="html", detail="full")`, which yields the body and `snapshotToken`.
 
 - **Full-body replace** (default for the controlled-doc workflows): change only the target span of HTML, keeping everything else byte-for-byte, then `updateConfluenceContent(body={format:"html", value}, snapshotToken)`.
-- **Granular `edits`** (good for a single cell/paragraph/append): `replaceNode` / `insertNodeAfter` / `appendNodeToEnd` etc., targeting a node by its fetched `data-local-id`. Use `dryRun: true` first to preview the resulting HTML. Everything outside the targeted node is left untouched by the server.
+- **Granular `edits`** (good for a single cell/paragraph/append): `replaceNode` / `insertNodeAfter` / `appendNodeToEnd` etc., targeting a node by its fetched `data-local-id`. Use `dryRun: true` first to preview the resulting HTML. The server can still re-serialise markup outside the targeted node (nesting order, entity forms, regenerated `data-local-id`s; occasionally a lost trailing space or table `data-layout` — see `../../skills/confluence-docs/references/update.md` → Wrapping an old plain header table → Lessons), so compare the whole dry-run output, and the re-fetched body after the real call, against the original before accepting it.
 
 Either way: two or three tool calls (fetch → [dry run] → update), then re-fetch to verify. See `../../skills/confluence-docs/references/update.md` for the full workflow, including sign-off, section-replacement, and table-row patterns.
 

@@ -15,10 +15,12 @@ Ask for anything not provided in the arguments:
 
 Extract the page ID from the URL if given: `https://cuhbioinformatics.atlassian.net/wiki/spaces/DV/pages/1234567890/...` → `1234567890`.
 
-If only a title or description is given, use `searchConfluence` to find it:
+If only a title or description is given, use `searchConfluence` to find it — by title if you have one, otherwise by page text:
 ```
 searchConfluence(cloudId: "cuhbioinformatics.atlassian.net", cql: "space = DV AND title ~ \"<title text>\" AND type = page")
+searchConfluence(cloudId: "cuhbioinformatics.atlassian.net", cql: "space = DV AND text ~ \"<description keywords>\" AND type = page")
 ```
+Show the user the candidate page(s) (title + URL) and get confirmation of which one to edit before fetching or changing anything.
 
 ---
 
@@ -61,13 +63,13 @@ updateConfluenceContent(cloudId: "cuhbioinformatics.atlassian.net", contentId: "
 
 ### Sign-off: update the controlled document header
 
-Applies to all document types. Updates the status lozenge, Approved by cell, and Approved and locked date cell.
+Applies to all document types. Updates the status lozenge, the Approved by cell, and — only where the header has one — the Approved and locked date cell. Only the Manual / Policy header has an "Approved and locked date" row (see Document-Type Field Reference below); Development & Testing and Controlled File headers don't, so for those apply changes 1 and 2 only and don't invent a date row.
 
-Fetch the body, then apply all three changes before sending it back once:
+Fetch the body, then apply the applicable changes before sending it back once:
 
 1. Status lozenge → `<span data-type="status" data-color="yellow">DRAFT</span>` becomes `<span data-type="status" data-color="green">APPROVED</span>`
 2. "Approved by" table cell → find the `<tr>` whose first `<td>` is `<p>Approved by</p>`, replace the second `<td>`'s contents (or the `<span data-type="placeholder">...</span>` inside it) with the approver's name
-3. "Approved and locked date" table cell → same pattern, replace with the date (`YYYY-MM-DD`)
+3. "Approved and locked date" table cell (Manual / Policy only) → same pattern, replace with the date (`YYYY-MM-DD`)
 
 The same sign-off can be done as one batch of granular edits — see **Granular edits for sign-off** below.
 
@@ -108,6 +110,8 @@ edits: [
   {"name":"replaceNode","arguments":{},"localId":"<id of the <p> in the Approved and locked date value cell>","value":"<p><time datetime=\"YYYY-MM-DD\">D Mon YYYY</time></p>"}
 ]
 ```
+
+Include the third edit only if the fetched header table actually has an "Approved and locked date" row (Manual / Policy pages); drop it for Development & Testing and Controlled File pages.
 
 - Target the **`<p>` inside the value cell, not the `<td>`** — replacing a `<td>` with a `<p>` deletes the cell. Run once with `dryRun: true` and check the echoed table before the real call.
 - `<time>` is re-rendered as a long date ("October 31, 2026").

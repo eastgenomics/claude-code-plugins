@@ -23,5 +23,6 @@ Before calling any page-creation or page-update tool:
 
 1. The user has confirmed the space (and parent page, if applicable).
 2. The user has seen the page plan (titles + hierarchy + one-line summary each) and said to proceed.
+3. You've loaded the target space's instructions with `getConfluenceSpace` (via `executeRead`) and applied them to the drafts — this workflow creates pages before reading any, so there's no `hasSpaceInstructions: false` to skip on (see `../../confluence-docs/SKILL.md` → Access).
 
 Creating a page is a visible, shared-state action — treat it with the same care as pushing a commit or opening a PR, not as a reversible local edit.
