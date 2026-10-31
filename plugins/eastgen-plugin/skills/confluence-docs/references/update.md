@@ -2,9 +2,7 @@
 
 Use this reference when the mode is `update`. Follow these steps in order.
 
-`updateConfluencePage` replaces the entire page body — there's no partial-update endpoint. The safe approach for surgical edits is:
-
-**Fetch the full HTML+ body → change only the target text → send the full body back.** Always exactly two tool calls, regardless of how small the change.
+Every edit starts from a fresh fetch of the page's HTML+ body and its `snapshotToken`. Then either send back a **full-body replace** (change only the target span, keep everything else byte-for-byte) or a batch of granular **`edits`** that target nodes by their fetched `data-local-id`. See [../../../shared/confluence/HTML_DIALECT.md](../../../shared/confluence/HTML_DIALECT.md) → Update Mechanics.
 
 ---
 
@@ -17,6 +15,11 @@ Ask for anything not provided in the arguments:
 
 Extract the page ID from the URL if given: `https://cuhbioinformatics.atlassian.net/wiki/spaces/DV/pages/1234567890/...` → `1234567890`.
 
+If only a title or description is given, use `searchConfluence` to find it:
+```
+searchConfluence(cloudId: "cuhbioinformatics.atlassian.net", cql: "space = DV AND title ~ \"<title text>\" AND type = page")
+```
+
 ---
 
 ## Step 2: Inspect the Body First
@@ -24,13 +27,14 @@ Extract the page ID from the URL if given: `https://cuhbioinformatics.atlassian.
 **Always fetch and read the body before writing any edit.** You cannot safely target text without knowing the page's actual current content.
 
 ```
-getConfluencePage(cloudId, pageId, contentFormat: "html")
+getConfluenceContent(cloudId: "cuhbioinformatics.atlassian.net", content_id: "<page_id>", content_format: "html", detail: "full")
 ```
 
-Read the returned `body` to:
+Read the returned body (`data.body.value`) to:
 - Confirm the exact text and surrounding markup of what you intend to change
 - Check whether a given text value appears more than once (e.g. "N/A" may appear in many cells — include enough surrounding context to make the target unique, the same discipline as any exact-match text edit)
 - Identify table structure (how many rows, what labels are in the first column) before editing a specific cell
+- Note any `data-local-id` / `data-color` / other attributes on the node you're changing — preserve everything you're not explicitly told to change, verbatim
 
 Only write the edit once you've seen the actual body.
 
@@ -41,10 +45,10 @@ Only write the edit once you've seen the actual body.
 Change only the specific span of HTML that needs to change — keep everything else byte-for-byte as fetched — then call:
 
 ```
-updateConfluencePage(cloudId, pageId, title, body, contentFormat: "html")
+updateConfluenceContent(cloudId: "cuhbioinformatics.atlassian.net", contentId: "<page_id>", snapshotToken: "<token from the fetch>", title: "<title>", body: {format: "html", value: "<edited html>"})
 ```
 
-Pass the existing title unchanged unless the title itself is part of the edit.
+`updateConfluenceContent` needs the **`snapshotToken`** from the fetch (not a version number); if it returns `snapshot_stale`, re-fetch and reapply. For a small change you may instead use `edits` (e.g. `replaceNode` on the target's `data-local-id`) — see HTML_DIALECT.md → Update Mechanics. Pass the existing title unchanged unless the title itself is part of the edit.
 
 **Safety rules:**
 - Include enough surrounding markup that the targeted text is uniquely identified before changing it
@@ -62,8 +66,10 @@ Applies to all document types. Updates the status lozenge, Approved by cell, and
 Fetch the body, then apply all three changes before sending it back once:
 
 1. Status lozenge → `<span data-type="status" data-color="yellow">DRAFT</span>` becomes `<span data-type="status" data-color="green">APPROVED</span>`
-2. "Approved by" table cell → replace its `<td>` contents with the approver's name
-3. "Approved and locked date" table cell → replace its `<td>` contents with the date
+2. "Approved by" table cell → find the `<tr>` whose first `<td>` is `<p>Approved by</p>`, replace the second `<td>`'s contents (or the `<span data-type="placeholder">...</span>` inside it) with the approver's name
+3. "Approved and locked date" table cell → same pattern, replace with the date (`YYYY-MM-DD`)
+
+The same sign-off can be done as one batch of granular edits — see **Granular edits for sign-off** below.
 
 ### Update the Jira ticket link
 
@@ -79,7 +85,7 @@ Insert a new `<h2>` block plus its content immediately before the next `<h1>` (o
 
 ### Update the page title (e.g. remove DRAFT)
 
-Pass the new title in the same `updateConfluencePage` call as any body change — no need for a separate call.
+Pass the new title in the same `updateConfluenceContent` call as any body change — no need for a separate call.
 
 ### Update a single table cell by label
 
@@ -88,6 +94,36 @@ Find the `<tr>` whose first `<td>`/`<th>` matches the label, then replace the co
 ### Add a row to a table
 
 Insert a new `<tr>` immediately before the table's closing `</tbody></table>`.
+
+---
+
+## Granular edits for sign-off (verified on v2)
+
+Instead of resending the whole body, a sign-off can be done as one batch of `edits` against the fetched body (get `snapshotToken` + `data-local-id`s from the fetch). Tested pattern, in a Page Properties table:
+
+```
+edits: [
+  {"name":"replaceNode","arguments":{},"localId":"<id of the <p> in the Status value cell>","value":"<p><span data-type=\"status\" data-color=\"green\" data-status-style=\"bold\">APPROVED</span> </p>"},
+  {"name":"replaceNode","arguments":{},"localId":"<id of the <p> in the Approved by value cell>","value":"<p>Name</p>"},
+  {"name":"replaceNode","arguments":{},"localId":"<id of the <p> in the Approved and locked date value cell>","value":"<p><time datetime=\"YYYY-MM-DD\">D Mon YYYY</time></p>"}
+]
+```
+
+- Target the **`<p>` inside the value cell, not the `<td>`** — replacing a `<td>` with a `<p>` deletes the cell. Run once with `dryRun: true` and check the echoed table before the real call.
+- `<time>` is re-rendered as a long date ("October 31, 2026").
+- Re-fetch afterwards and confirm.
+
+---
+
+## Wrapping an old plain header table in Page Properties (done 2026-10-31 on 12 DV drafts)
+
+Pages cloned from the Manual/Policy template before it gained the macro have a plain header `<table>` (its `data-local-id` is `b24120e1-0142-4420-acd0-4401adc77d8f`). To wrap one: fetch (html, `detail: "full"`), then a single `replaceNode` on the **table's own `data-local-id`** whose value is `<div data-type="bodied-extension" data-extension-key="details" data-extension-type="com.atlassian.confluence.macro.core" data-layout="default" data-parameters="{&quot;macroParams&quot;:{},&quot;macroMetadata&quot;:{&quot;schemaVersion&quot;:{&quot;value&quot;:&quot;1&quot;},&quot;title&quot;:&quot;Page Properties&quot;}}">` + the table copied verbatim + `</div>`; `dryRun` first, then the real call with `minorEdit: true`.
+
+Lessons:
+- Copy `&nbsp;` as an entity — retyping it as a space silently changes the cell (caught in the dry-run echo three times).
+- Never fetch in parallel with the write; one pilot got a spurious `internal_error` ("row count 0") that cleared on a sequential retry.
+- Expect harmless server re-serialisation outside the edit: `<strong>`/`<span>` nesting order, entity forms, regenerated figure `data-local-id`s, `_parentId` on macros. Occasionally a trailing space in an inline `<code>` span is lost, and one page lost a table's `data-layout="center"` — check long pages visually.
+- Use `CQL ... AND NOT macro = "details"` to find pages still lacking the macro; `macro = "details"` works as a filter.
 
 ---
 

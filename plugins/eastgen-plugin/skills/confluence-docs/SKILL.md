@@ -37,15 +37,33 @@ Read [../../shared/confluence/HTML_DIALECT.md](../../shared/confluence/HTML_DIAL
 - **Base URL**: `https://cuhbioinformatics.atlassian.net/wiki`
 - **Space key**: `DV`
 - **Space ID**: `2903080965`
-- **Cloud ID**: `3419b8d5-6218-492f-bff8-812d5d24cdc7`
+- **Cloud ID**: use the site URL `cuhbioinformatics.atlassian.net` directly as `cloudId` in every MCP call below — the tools resolve it automatically. (The underlying UUID `3419b8d5-6218-492f-bff8-812d5d24cdc7` is only needed for the Mermaid macro's `embeddedMacroContext` — see HTML_DIALECT.md → Mermaid.)
 
-Confirm these are still current with `getConfluenceSpaces` / `getAccessibleAtlassianResources` if anything looks off — they're recorded here to skip a lookup on every run, not treated as unchangeable.
+Confirm these are still current with `getConfluenceSpace` (`spaceIdOrKey: "DV"`) if anything looks off — they're recorded here to skip a lookup on every run, not treated as unchangeable.
 
 ## Access
 
-Use the bundled `atlassian` MCP server (`ToolSearch: query "confluence"`) — OAuth-authenticated per user, no token file. If a call reports the server needs authentication, direct the user to `/mcp` or `claude mcp login atlassian`.
+Use the bundled `atlassian` MCP server — the **v2 endpoint** (`https://mcp.atlassian.com/v2/mcp`), OAuth-authenticated per user, no token file. v1 lacks the attachment tools and uses different tool names. Find its tools with `ToolSearch: query "+atlassian"` (not `"confluence"` — the discovery-layer tools don't have "confluence" in their names). If a call reports the server needs authentication, direct the user to `/mcp` or `claude mcp login atlassian`.
 
-There is no MCP tool for fetching a Confluence page **template** (the admin-defined kind). That's fine — the org no longer uses that feature for these doc types. Instead, each doc type has a **live Confluence page that is functionally the master template**: fetch it fresh with `getConfluencePage(contentFormat: "html")`, clone its body, and replace placeholders per that reference file's Content Guide. See **Live template pages** below.
+v2 exposes a few **primary** tools directly and the rest through a discovery layer: `discover(query)` finds an operation, then it is run with `executeRead` / `executeWrite` / `executeDestructive` (`name`, `cloudId`, `inputs`). Call primary tools directly. In Claude Code every tool is prefixed `mcp__plugin_eastgen-plugin_atlassian__`.
+
+Tools used by the Confluence skills:
+
+| Tool | Kind | Purpose |
+|---|---|---|
+| `getConfluenceContent` | primary | Fetch a page. Use `content_format: "html"` **and `detail: "full"`** (default `detail` is a cheap summary with no body). Returns `snapshotToken` and `data.body.value`. Accepts `content_id` or `content_url`. |
+| `createConfluenceContent` | primary | Create a page: `parent: {spaceId, parentContentId}`, `contentType: "page"`, `title`, `body: {format:"html", value:"…"}` |
+| `updateConfluenceContent` | primary | Update a page: either `body: {format:"html", value}` (full replace) **or** `edits: [...]` (granular), plus the `snapshotToken` from the latest fetch. `dryRun: true` validates without saving. |
+| `searchConfluence` | primary | Find pages by title/text/label (CQL) |
+| `getConfluenceContentDescendants` (`contentId`, `depth`) | `executeRead` | List child pages |
+| `getConfluenceSpace` (`spaceIdOrKey`) | `executeRead` | Space ID/key/homepage + space instructions |
+| `createConfluenceAttachment` | `executeWrite` | Prepare a file upload (returns a curl command) — see HTML_DIALECT.md → Images and Attachments |
+| `listConfluenceAttachments` / `getConfluenceAttachment` / `downloadConfluenceAttachment` | `executeRead` | Inspect / download attachments |
+| `getContentFormatGuide` (`toolName`) | `executeRead` | Canonical HTML format reference — call before authoring unfamiliar markup |
+
+Always pass `cloudId` explicitly (the site URL `cuhbioinformatics.atlassian.net` works). `getConfluenceContent` returns `metadata.hasSpaceInstructions`; if `true`, load them with `getConfluenceSpace` and apply them to the whole body. (`getConfluenceSpace` for `DV` returned no instructions when last checked.)
+
+There is no MCP tool for fetching a Confluence page **template** (the admin-defined kind). That's fine — the org no longer uses that feature for these doc types. Instead, each doc type has a **live Confluence page that is functionally the master template**: fetch it fresh with `getConfluenceContent` (`content_format: "html"`, `detail: "full"`), clone its body, and replace placeholders per that reference file's Content Guide. See **Live template pages** below.
 
 ## Live template pages
 
@@ -57,16 +75,23 @@ Under [Live documentation guide](https://cuhbioinformatics.atlassian.net/wiki/sp
 | Controlled File | `4745363735` | [.../pages/4745363735](https://cuhbioinformatics.atlassian.net/wiki/spaces/DV/pages/4745363735/Controlled+File+doc+template+copy+this+page+s+content+to+create+a+new+resource-doc) |
 | Manual / Policy | `4745363752` | [.../pages/4745363752](https://cuhbioinformatics.atlassian.net/wiki/spaces/DV/pages/4745363752/Manual+Policy+doc+template+copy+this+page+s+content+to+create+a+new+policy-doc) |
 
-These three pages are literal copies of the org's former Confluence templates — they exist purely to be fetched and cloned, never to be linked to a user as a finished document. Fetching one with `contentFormat: "html"` returns its body already translated into this dialect's macro shapes (Page Properties panel, TOC, `expand`, `tip`→`panel-success`, status lozenges, placeholders) — no storage-XML conversion needed, and no freehand macro reconstruction from memory of the Content Guide either.
+These three pages are literal copies of the org's former Confluence templates — they exist purely to be fetched and cloned, never to be linked to a user as a finished document.
+
+Fetching one with `content_format: "html"` returns its body already translated into this dialect's macro shapes: Page Properties panel (`bodied-extension`), TOC (`extension`), `expand` (plain `<details><summary>`), `tip` → `<div data-type="panel-success">`, status lozenges (`<span data-type="status" data-color="...">`), and placeholders (`<span data-type="placeholder">prompt text</span>`) — verified live on v2 (`getConfluenceContent`, `detail: "full"`): all three template pages return exactly these shapes. All three templates now use a Page Properties `bodied-extension` (`details`) around the header table — the Manual/Policy template was a plain table until it was wrapped on 2026-10-31 (page version 2); clones taken before then lack the macro (see `references/update.md` → Wrapping an old plain header table).
 
 **Clone-and-create procedure — single source of truth for all three `create` modes:**
 
-1. `getConfluencePage(cloudId, pageId: "<template page ID from the table above>", contentFormat: "html")` — fetch the live template's body.
+1. `getConfluenceContent(cloudId, content_id: "<template page ID from the table above>", content_format: "html", detail: "full")` — returns the full body string in `data.body.value`.
 2. Walk that body and replace each `<span data-type="placeholder">...</span>` (and the default Page Properties values) with real content per that mode's Content Guide. Leave a placeholder untouched, verbatim, for anything not yet known — don't invent content.
 3. Create the page in one call with the edited body:
    ```
-   createConfluencePage(cloudId, spaceId, parentId, title, body, contentFormat: "html")
+   createConfluenceContent(cloudId, parent: {spaceId, parentContentId}, contentType: "page", title, body: {format: "html", value: <html>})
    ```
+4. Report the returned page's URL.
+
+**Full-size clones verified on v2** (all three templates cloned with `data-local-id`s stripped, into a personal space): the outline (headings) matched the source exactly, and element counts matched — Dev doc: 5 expands, 9 status lozenges, 6 success panels, 13 emoji, 6 code blocks; Controlled File: 4 expands, 8 lozenges, 5 panels; Policy: panel-note, TOC, headings. Differences: the server adds `_parentId` to macro params, and zero-width spaces in the source can be dropped. A ~25 KB body creates in one call.
+
+**Cloned bodies may keep or drop `data-local-id`s** — both were tested and both create fine (the server regenerates IDs). Keep `macroId` and `data-parameters` inside macros verbatim. After create, the server adds `_parentId` to macro params on the stored copy; ignore it.
 
 Don't reconstruct the skeleton from memory of the Content Guide — always start from the cloned template body, which already has every macro (Page Properties, TOC, `expand`, `tip`→`panel-success`, status lozenges, and — for the dev-doc template — repeated Test Scenario blocks) in the exact shape Confluence expects.
 
