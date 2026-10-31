@@ -8,7 +8,7 @@ This plugin bundles the official Atlassian remote MCP server (Confluence + Jira 
 ToolSearch: query "+atlassian"
 ```
 
-Use `createConfluenceContent` / `updateConfluenceContent` / `getConfluenceContent` with the **`"html"`** format — `content_format: "html"` plus `detail: "full"` on reads, `body: {format: "html", value}` on writes, and `cloudId: "cuhbioinformatics.atlassian.net"` on every call (see `../../shared/confluence/HTML_DIALECT.md` for the dialect and Update Mechanics; `../confluence-docs/SKILL.md` → Access lists every tool and how it's reached). They handle auth for you; updates need the `snapshotToken` from the latest fetch or update response. If a call reports the server needs authentication, that user hasn't signed in yet: direct them to run `/mcp` (interactive) or `claude mcp login atlassian` to complete their own one-time OAuth flow.
+Use `createConfluenceContent` / `updateConfluenceContent` / `getConfluenceContent` with the **`"html"`** format — `content_format: "html"` plus `detail: "full"` on reads, `body: {format: "html", value}` on writes, and `cloudId: "cuhbioinformatics.atlassian.net"` on every call (see `../../../shared/confluence/HTML_DIALECT.md` for the dialect and Update Mechanics; `../../confluence-docs/SKILL.md` → Access lists every tool and how it's reached). They handle auth for you; updates need the `snapshotToken` from the latest fetch or update response. If a call reports the server needs authentication, that user hasn't signed in yet: direct them to run `/mcp` (interactive) or `claude mcp login atlassian` to complete their own one-time OAuth flow.
 
 ## Drafting workflow (do this before calling any tool)
 

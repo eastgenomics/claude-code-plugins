@@ -4,7 +4,7 @@ Shared reference for every skill in this plugin that reads or writes Confluence 
 
 The bundled `atlassian` MCP server is the **v2 endpoint** (`https://mcp.atlassian.com/v2/mcp`). Its Confluence tools (`getConfluenceContent`, `createConfluenceContent`, `updateConfluenceContent`, …) take a body format of `"html"` or `"markdown"` (`content_format` on reads, `body: {format, value}` on writes). **Use `"html"`** — it round-trips cleanly (confirmed live against this vault) and is what the tool descriptions document in full. Reads must also pass **`detail: "full"`** — the default `detail` is a cheap summary with no body. These tools **reject Confluence storage-format XML** (`<ac:structured-macro>`) — never use it, even though it's what the raw Confluence REST API and its templates use internally.
 
-For the canonical format reference, `getContentFormatGuide` (`toolName: "createConfluencePage"` or `"updateConfluencePage"` — the server's internal operation names, not the `…Content` tool names) — call it before authoring unfamiliar markup. How each tool is reached (directly or through the server's discovery layer) is listed once, in `skills/confluence-docs/SKILL.md` → Access.
+For the canonical format reference, `getContentFormatGuide` (`toolName: "createConfluencePage"` or `"updateConfluencePage"` — the server's internal operation names, not the `…Content` tool names) — call it before authoring unfamiliar markup. How each tool is reached (directly or through the server's discovery layer) is listed once, in `../../skills/confluence-docs/SKILL.md` → Access.
 
 ## Basic blocks
 
@@ -40,7 +40,7 @@ Unlike storage-format XML, this dialect has no `<ri:page ri:content-title="...">
 
 **Implication for any multi-page set (a series, a parent + children):** create every page first, collecting each returned page ID, then go back and update pages that need to link to siblings — a two-pass process, not one. Page URLs take the form `{baseUrl}/wiki/spaces/{spaceKey}/pages/{pageId}/{url-encoded-title}` (the title-encoded suffix is optional; Confluence redirects correctly from just `{baseUrl}/wiki/spaces/{spaceKey}/pages/{pageId}`).
 
-Don't rely on native `toc` or `children`-display macros for auto-built navigation — their `data-extension-key` values aren't verified for this dialect. Hand-build a short links list in the second pass instead; you already have the real IDs by then, and it's one paragraph.
+Don't rely on native `toc` or `children`-display macros for auto-built navigation of *sibling links* — they display, not link cross-page. Hand-build a short links list in the second pass instead; you already have the real IDs by then, and it's one paragraph.
 
 ## Update Mechanics
 
@@ -49,7 +49,7 @@ v2 supports two safe write styles; both start from a fresh `getConfluenceContent
 - **Full-body replace** (default for the controlled-doc workflows): change only the target span of HTML, keeping everything else byte-for-byte, then `updateConfluenceContent(body={format:"html", value}, snapshotToken)`.
 - **Granular `edits`** (good for a single cell/paragraph/append): `replaceNode` / `insertNodeAfter` / `appendNodeToEnd` etc., targeting a node by its fetched `data-local-id`. Use `dryRun: true` first to preview the resulting HTML. Everything outside the targeted node is left untouched by the server.
 
-Either way: two or three tool calls (fetch → [dry run] → update), then re-fetch to verify. See `skills/confluence-docs/references/update.md` for the full workflow, including sign-off, section-replacement, and table-row patterns.
+Either way: two or three tool calls (fetch → [dry run] → update), then re-fetch to verify. See `../../skills/confluence-docs/references/update.md` for the full workflow, including sign-off, section-replacement, and table-row patterns.
 
 ## Mermaid flowcharts — verified, this org's real mechanism
 
@@ -93,7 +93,7 @@ Cloud ID (`3419b8d5-6218-492f-bff8-812d5d24cdc7`) and the workspace context ARI 
 
 Verified live on v2 (image attached to and embedded in a page). Local files **cannot** be referenced by path in a body, and the MCP server never receives file bytes — upload is a **prepare (MCP) → upload (local curl) → embed (MCP)** sequence:
 
-1. **Prepare**: `createConfluenceAttachment` with `cloudId` and `inputs={contentId, localFilePath, fileSize}`. `fileSize` is optional but **must be ≥ 1 if passed** (get it with `stat -c %s`); don't pass `0`. The page must already exist. Returns `data.uploadCommand`, a ready-made `curl … --form 'file=@"<path>"'` with a short-lived bearer token (max 100 MB).
+1. **Prepare**: `createConfluenceAttachment` (via `executeWrite`) with `cloudId` and `inputs={contentId, localFilePath, fileSize}`. `fileSize` is optional but **must be ≥ 1 if passed** (get it with `stat -c %s`); don't pass `0`. The page must already exist. Returns `data.uploadCommand`, a ready-made `curl … --form 'file=@"<path>"'` with a short-lived bearer token (max 100 MB).
 2. **Upload**: run `uploadCommand` verbatim with Bash. The JSON response contains `id` (`att…`), `title`, `mediaType`, and **`fileId`** (a UUID). The `fileId` is the media ID. Don't echo the bearer token back to the user or paste it in files.
 3. **Embed**: the collection is `contentId-<pageId>`. Add the HTML below with `updateConfluenceContent` — easiest as `edits: [{"name":"appendNodeToEnd","arguments":{},"value":"<html>"}]` with the current `snapshotToken` (or `insertNodeAfter` a known `localId` for positional placement), or include it in a full `body`.
 
