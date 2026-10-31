@@ -45,7 +45,7 @@ Confirm these are still current with `getConfluenceSpace` (`spaceIdOrKey: "DV"`)
 
 Use the bundled `atlassian` MCP server — the **v2 endpoint** (`https://mcp.atlassian.com/v2/mcp`), OAuth-authenticated per user, no token file. v1 lacks the attachment tools and uses different tool names. Find its tools with `ToolSearch: query "+atlassian"` (not `"confluence"` — the discovery-layer tools don't have "confluence" in their names). If a call reports the server needs authentication, direct the user to `/mcp` or `claude mcp login atlassian`.
 
-v2 exposes a few **primary** tools directly and the rest through a discovery layer: `discover(query)` finds an operation, then it is run with `executeRead` / `executeWrite` / `executeDestructive` (`name`, `cloudId`, `inputs`). Call primary tools directly. In Claude Code every tool is prefixed `mcp__plugin_eastgen-plugin_atlassian__`.
+v2 exposes a few **primary** tools directly and the rest through a discovery layer (split confirmed in Claude Code on 2026-10-31): `discover(query)` finds an operation, then it is run with `executeRead` / `executeWrite` / `executeDestructive` (`name`, `cloudId`, `inputs`). Call primary tools directly. In Claude Code every tool is prefixed `mcp__plugin_eastgen-plugin_atlassian__`.
 
 Tools used by the Confluence skills:
 
@@ -59,7 +59,8 @@ Tools used by the Confluence skills:
 | `getConfluenceSpace` (`spaceIdOrKey`) | `executeRead` | Space ID/key/homepage + space instructions |
 | `createConfluenceAttachment` | `executeWrite` | Prepare a file upload (returns a curl command) — see HTML_DIALECT.md → Images and Attachments |
 | `listConfluenceAttachments` / `getConfluenceAttachment` / `downloadConfluenceAttachment` | `executeRead` | Inspect / download attachments |
-| `getContentFormatGuide` (`toolName`) | `executeRead` | Canonical HTML format reference — call before authoring unfamiliar markup |
+| `getContentFormatGuide` (`toolName: "createConfluencePage"` / `"updateConfluencePage"`) | `executeRead` | Canonical HTML format reference — call before authoring unfamiliar markup |
+| `getConfluencePersonalSpace` | `executeRead` | The current user's personal space (ID and `~` key) — use it for throwaway test pages, never DV |
 
 Always pass `cloudId` explicitly (the site URL `cuhbioinformatics.atlassian.net` works). `getConfluenceContent` returns `metadata.hasSpaceInstructions`; if `true`, load them with `getConfluenceSpace` and apply them to the whole body. (`getConfluenceSpace` for `DV` returned no instructions when last checked.)
 
