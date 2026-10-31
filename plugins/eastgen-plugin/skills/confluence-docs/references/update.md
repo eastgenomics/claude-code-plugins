@@ -117,7 +117,7 @@ edits: [
 
 ## Wrapping an old plain header table in Page Properties (done 2026-10-31 on 12 DV drafts)
 
-Pages cloned from the Manual/Policy template before it gained the macro have a plain header `<table>` (its `data-local-id` is `b24120e1-0142-4420-acd0-4401adc77d8f`). To wrap one: fetch (html, `detail: "full"`), then a single `replaceNode` on the **table's own `data-local-id`** whose value is `<div data-type="bodied-extension" data-extension-key="details" data-extension-type="com.atlassian.confluence.macro.core" data-layout="default" data-parameters="{&quot;macroParams&quot;:{},&quot;macroMetadata&quot;:{&quot;schemaVersion&quot;:{&quot;value&quot;:&quot;1&quot;},&quot;title&quot;:&quot;Page Properties&quot;}}">` + the table copied verbatim + `</div>`; `dryRun` first, then the real call with `minorEdit: true`.
+Pages cloned from the Manual/Policy template before it gained the macro have a plain header `<table>` (use the `data-local-id` from your own fetch — on the 2026-10-31 batch it was `b24120e1-0142-4420-acd0-4401adc77d8f`, but don't assume it). To wrap one: fetch (html, `detail: "full"`), then a single `replaceNode` on the **table's own `data-local-id`** whose value is `<div data-type="bodied-extension" data-extension-key="details" data-extension-type="com.atlassian.confluence.macro.core" data-layout="default" data-parameters="{&quot;macroParams&quot;:{},&quot;macroMetadata&quot;:{&quot;schemaVersion&quot;:{&quot;value&quot;:&quot;1&quot;},&quot;title&quot;:&quot;Page Properties&quot;}}">` + the table copied verbatim + `</div>`; `dryRun` first, then the real call with `minorEdit: true`.
 
 Lessons:
 - Copy `&nbsp;` as an entity — retyping it as a space silently changes the cell (caught in the dry-run echo three times).

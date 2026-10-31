@@ -39,7 +39,7 @@ Read [../../shared/confluence/HTML_DIALECT.md](../../shared/confluence/HTML_DIAL
 - **Space ID**: `2903080965`
 - **Cloud ID**: use the site URL `cuhbioinformatics.atlassian.net` directly as `cloudId` in every MCP call below — the tools resolve it automatically. (The underlying UUID `3419b8d5-6218-492f-bff8-812d5d24cdc7` is only needed for the Mermaid macro's `embeddedMacroContext` — see HTML_DIALECT.md → Mermaid.)
 
-Confirm these are still current with `getConfluenceSpace` (`spaceIdOrKey: "DV"`) if anything looks off — they're recorded here to skip a lookup on every run, not treated as unchangeable.
+Confirm these are still current with `getConfluenceSpace` (via `executeRead`, `inputs: {spaceIdOrKey: "DV"}`) if anything looks off — they're recorded here to skip a lookup on every run, not treated as unchangeable.
 
 ## Access
 
@@ -62,7 +62,7 @@ Tools used by the Confluence skills:
 | `getContentFormatGuide` (`toolName: "createConfluencePage"` / `"updateConfluencePage"`) | `executeRead` | Canonical HTML format reference — call before authoring unfamiliar markup |
 | `getConfluencePersonalSpace` | `executeRead` | The current user's personal space (ID and `~` key) — use it for throwaway test pages, never DV |
 
-Always pass `cloudId` explicitly (the site URL `cuhbioinformatics.atlassian.net` works). `getConfluenceContent` returns `metadata.hasSpaceInstructions`; if `true`, load them with `getConfluenceSpace` and apply them to the whole body. (`getConfluenceSpace` for `DV` returned no instructions when last checked.)
+Always pass `cloudId` explicitly (the site URL `cuhbioinformatics.atlassian.net` works). `getConfluenceContent` returns `metadata.hasSpaceInstructions`; if `true`, load them with `getConfluenceSpace` (via `executeRead`) and apply them to the whole body. (`getConfluenceSpace` for `DV` returned no instructions when last checked.)
 
 There is no MCP tool for fetching a Confluence page **template** (the admin-defined kind). That's fine — the org no longer uses that feature for these doc types. Instead, each doc type has a **live Confluence page that is functionally the master template**: fetch it fresh with `getConfluenceContent` (`content_format: "html"`, `detail: "full"`), clone its body, and replace placeholders per that reference file's Content Guide. See **Live template pages** below.
 

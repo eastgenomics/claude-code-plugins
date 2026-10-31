@@ -66,8 +66,8 @@ Confirmed live against `cuhbioinformatics.atlassian.net` (space `DV`), including
 **Fill in per use:**
 - `{ACCOUNT_ID}` — the current user's account ID (`atlassianUserInfo` MCP tool, or read from an existing page you fetched).
 - `{PAGE_ID}` — **the page must already exist first** — this is a chicken-and-egg constraint like the page-links one above: create the page (with placeholder content or without its diagrams), then `updateConfluenceContent` to add Mermaid diagrams once you know the page's own ID.
-- `{SPACE_ID}` / `{SPACE_KEY}` — from `getConfluenceSpace` (`2903080965` / `DV` for this vault).
-- `{LOCAL_ID}` — any unique string per diagram (e.g. a short slug); reuse the same value for both the outer `data-local-id` and the inner `parameters.localId`/`extensionId` local id if adding one.
+- `{SPACE_ID}` / `{SPACE_KEY}` — from `getConfluenceSpace` (via `executeRead`) (`2903080965` / `DV` for this vault).
+- `{LOCAL_ID}` — any unique string per diagram (e.g. a short slug), used only for the inner `localId` in `data-parameters`. Don't add an outer `data-local-id` to the new `<div>` (see the rule on new nodes above).
 - `index` — 0-based position counting **every** code block on the page in document order, Mermaid or not (see gotcha above) — not just the Mermaid ones.
 
 Cloud ID (`3419b8d5-6218-492f-bff8-812d5d24cdc7`) and the workspace context ARI are site-wide constants for `cuhbioinformatics` — stable across pages and spaces on this site, safe to hardcode.
