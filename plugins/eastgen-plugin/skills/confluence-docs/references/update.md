@@ -34,7 +34,7 @@ Every page has two copies: the **published version** (what people see) and one s
 getConfluenceContent(cloudId: "cuhbioinformatics.atlassian.net", content_id: "<page_id>", content_format: "html", detail: "full", draft: true)
 ```
 
-It returns `status: "draft"` and a `snapshotToken` of the form `d1:<n>`. If the draft fetch fails, **stop and report the error** — never fall back to the published version's token. Node `data-local-id`s are the same as in the published body.
+It returns `status: "draft"` and a `snapshotToken` of the form `d1:<n>`. If the draft fetch fails, **stop and report the error** — never fall back to the published version's token. Node `data-local-id`s can **differ** from the published body's (seen on a freshly created page, 2026-11-13) — take `localId`s for granular `edits` from the draft fetch, never the published one.
 
 **Then check the draft for someone else's unpublished work.** Fetch the published version too (the same call without `draft`) and compare the two **titles and bodies**, ignoring `data-local-id` attributes, the `_parentId` macro parameter, and the Page Properties macro's `id` parameter. If the draft differs in real content or title, someone has unpublished edits in the editor and publishing your change would publish theirs too (including over their title, since Step 3 sends a `title`) — **stop and ask the user** before going on.
 
@@ -78,7 +78,12 @@ After the update, re-fetch **both** the published version and the draft.
 
 If the draft doesn't match the published version, **stop and tell the user**: publishing from edit mode would revert the change. Don't patch the draft separately — Atlassian advises against external changes to the draft object.
 
-When reporting, tell the user that both the published page and the edit-mode draft carry the change. The first time this draft-based flow is used in this vault, record the result here (date, page, whether the draft and published versions matched).
+When reporting, tell the user that both the published page and the edit-mode draft carry the change. **Test results (2026-11-13, private throwaway page in a personal space, not DV):**
+- Draft-token publish (`d1:2` → v2): the published copy and the draft both carried the edit.
+- Draft-only update (`draft: true`): the draft carried the change, the published copy was unchanged — and the draft-vs-published comparison then shows a real difference, so the next edit stops as designed.
+- Published-token publish (`v:2`) while the draft held unpublished content: accepted, and this time the server merged it into the draft (edit applied, unpublished line kept). The 2026-11-11 loss did not reproduce in this simple case, but merging is not guaranteed (CONFCLOUD-80719), so the draft rule stands.
+
+Record the first use on a real DV page here too.
 
 ---
 
