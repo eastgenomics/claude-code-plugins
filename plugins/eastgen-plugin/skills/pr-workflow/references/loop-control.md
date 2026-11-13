@@ -38,7 +38,7 @@ absolute path.
 - **Deployment facts** in the ledger: the real inputs and configurations this code meets (panels,
   file properties, who runs it), each with how it was checked (a command and its output).
 - **Draft PR body** in `<task>/pr-body.md` — for an existing PR, start from its current body
-  (`gh pr view <n> --json body --jq .body`): summary, deferrals, 🔵s not applied, known
+  (`gh pr view <n> --json body --jq .body`), and save that fetched body as `<task>/pr-body.base.md`: summary, deferrals, 🔵s not applied, known
   limitations, and test-run evidence. The reviewer checks its claims; Step 2b publishes it.
 - **Prompt file.** Write each review prompt to `<task>/prompt-<round>.md` (Write tool) in
   a tool call *before* the one that launches the reviewer, and check it with `test -s`. Pass its
@@ -153,11 +153,9 @@ non-blocking findings, and a Clean post-final verification goes to Step 2b, not 
 fix, and verify them narrowly, using the remaining verification rounds; they need no new wide or
 final round — **but only if `<task>/ledger.md` records a completed wide review and final for this
 PR.** If it doesn't (the PR predates this workflow, or the ledger is missing), run Setup and the
-full loop from step 1 instead. The PR body is never published from a stale copy: Step 2b
-re-fetches the PR's current body (`gh pr view <n> --json body --jq .body`) immediately before
-`gh pr edit`, and if it changed since `<task>/pr-body.md` was last refreshed, merges those
-GitHub-side edits into the draft — keeping the draft's ledger lines (`Deferred to …`, known
-limitations, `Local review:`) — or asks the user if they conflict. The Clean verification's SHA is the pushable SHA. Feedback that changes the PR's
+full loop from step 1 instead. Every publish of `<task>/pr-body.md` follows the PR-body guardrail
+in SKILL.md (re-fetch, compare with `<task>/pr-body.base.md`, merge), so GitHub-side edits are
+never overwritten. The Clean verification's SHA is the pushable SHA. Feedback that changes the PR's
 purpose or adds new work is a new task, with its own ledger section and budget.
 
 ## Budget
