@@ -26,6 +26,8 @@ Ask for anything not provided in the arguments:
 - **Testing performed**: what was done to validate the resource
 - **Overall Outcome**: pass/fail recommendation, or "To be completed" if not ready
 
+**Done when:** every field above has either a real value or an explicit "leave blank" / "not yet known" / "omit" from the user. Don't go on to Step 2 having silently skipped a field you never asked about.
+
 ---
 
 ## Step 2: Clone the Live Template and Create the Page
@@ -67,13 +69,16 @@ Bullet points and code blocks covering:
 - Commands run (code block, `bash`)
 
 ### H1: Testing
-Start with a Testing Summary table (Test | Outcome columns). Then one H2 per test scenario:
+Start with a Testing Summary table (Test | Outcome columns). Then one H2 per test scenario, repeating the same 🦮 emoji as the cloned template (see SKILL.md → Heading emojis):
 
 - **Testing Strategy**: what was tested and why
 - **Expected Outcome**: what a passing result looks like
-- **Commands used**: code block
+- **Provenance of Results** (the template's expand section), containing:
+  - **Link to job(s)** — where the test ran as jobs (DNAnexus, AWS), every job ID as a real hyperlink, not a plain code span (DNAnexus URL patterns: [dev-doc.md](dev-doc.md) → DNAnexus URL patterns)
+  - **Commands used** — the actual commands in a `bash` code block, complete enough for the test to be reproduced independently
 - **Test Output**: describe or paste the output
 - **Test Outcome**: status lozenge (green = PASS, red = FAIL, yellow = Pass with warning) + narrative
+- **Tip panel** (the template's `panel-success`) — one-line plain-English summary
 
 ---
 

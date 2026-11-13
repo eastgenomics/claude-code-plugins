@@ -1,21 +1,23 @@
 ---
 name: confluence-docs
-description: "create dev-doc | create resource-doc | create policy-doc | update — create and update controlled documentation pages in the CUH Bioinformatics Documentation Vault on Confluence."
+description: "Create or update controlled CUH Bioinformatics Documentation Vault pages on Confluence. Use when asked to create or update development/testing evidence, controlled-file (resource) documentation, manual/policy pages, or DNAnexus release and sign-off documentation. Modes: create dev-doc | create resource-doc | create policy-doc | update."
 argument-hint: "create dev-doc | create resource-doc | create policy-doc | update"
 allowed-tools: Read, Write, Edit, Bash, Grep, Glob
 ---
 
 You are helping manage controlled documentation in the CUH Bioinformatics Documentation Vault on Confluence.
 
-The user has invoked this skill with the following arguments:
+When the user invokes `/confluence-docs`, its arguments are:
 
 $ARGUMENTS
+
+When this skill is model-invoked, use the user's request as the task context; `$ARGUMENTS` may be empty.
 
 ---
 
 ## Mode dispatch
 
-Read the arguments, determine the mode, then **immediately read the corresponding reference file** before doing anything else:
+Determine the mode from the arguments when supplied; otherwise infer it from the user's request. Then **immediately read the corresponding reference file** before doing anything else:
 
 | Arguments start with | Reference file | Covers |
 |---|---|---|
@@ -24,7 +26,7 @@ Read the arguments, determine the mode, then **immediately read the correspondin
 | `create policy-doc` | [references/policy-doc.md](references/policy-doc.md) | Manual/Policy docs — operational guidance, training policies |
 | `update` | [references/update.md](references/update.md) | Surgical edits to any existing page |
 
-Text after the mode keyword is additional context (title, URLs, description of the change) — carry it through into the reference file's workflow. If no valid mode is given, ask which of the four is needed.
+Text after the mode keyword, and the user's request when model-invoked, is additional context (title, URLs, description of the change) — carry it through into the reference file's workflow. If the request doesn't distinguish a mode, ask which of the four is needed.
 
 The three `create` modes all clone their page from a live template page (see **Live template pages** below) rather than building HTML+ from scratch — read that section before starting any `create` workflow.
 
@@ -51,9 +53,9 @@ Tools used by the Confluence skills:
 
 | Tool | Kind | Purpose |
 |---|---|---|
-| `getConfluenceContent` | primary | Fetch a page. Use `content_format: "html"` **and `detail: "full"`** (default `detail` is a cheap summary with no body). Returns `snapshotToken` and `data.body.value`. Accepts `content_id` or `content_url`. |
+| `getConfluenceContent` | primary | Fetch a page. Use `content_format: "html"` **and `detail: "full"`** (default `detail` is a cheap summary with no body). Returns `snapshotToken` and `data.body.value`. Accepts `content_id` or `content_url`. **Before editing an existing page, fetch with `draft: true`** (the edit-mode draft, token `d1:<n>`) — see HTML_DIALECT.md → Update Mechanics. |
 | `createConfluenceContent` | primary | Create a page: `parent: {spaceId, parentContentId}`, `contentType: "page"`, `title`, `body: {format:"html", value:"…"}` |
-| `updateConfluenceContent` | primary | Update a page: either `body: {format:"html", value}` (full replace) **or** `edits: [...]` (granular), plus the `snapshotToken` from the latest fetch. `dryRun: true` validates without saving. |
+| `updateConfluenceContent` | primary | Update a page: either `body: {format:"html", value}` (full replace) **or** `edits: [...]` (granular), plus the `snapshotToken` from the latest **draft** fetch. Omit `draft` to publish; `draft: true` only saves the draft. `dryRun: true` validates without saving. |
 | `searchConfluence` | primary | Find pages by title/text/label (CQL) |
 | `atlassianUserInfo` | primary | Current user's `accountId` (e.g. for the Mermaid macro) |
 | `getConfluenceContentDescendants` (`contentId`, `depth`) | `executeRead` | List child pages |
@@ -113,4 +115,4 @@ Don't reconstruct the skeleton from memory of the Content Guide — always start
 
 **Done when** (create modes): the page exists in Confluence with every Content Guide section populated (or explicitly marked "To be completed" where the reference allows it), and its URL has been reported back.
 
-**Done when** (update mode): the specific requested change is applied, verified by re-reading the page, and any remaining manual step (permissions, archiving, ticket updates) from that reference file's Post-Update Reminders has been surfaced to the user.
+**Done when** (update mode): the specific requested change is applied, verified by re-reading **both** the published page and the edit-mode draft, and any remaining manual step (permissions, archiving, ticket updates) from that reference file's Post-Update Reminders has been surfaced to the user.

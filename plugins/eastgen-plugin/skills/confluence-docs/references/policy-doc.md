@@ -25,6 +25,8 @@ Ask for anything not provided in the arguments:
 - **Useful linked documentation**: related documents — each entry needs a link and a comment describing its relevance
 - **Content sections**: the main body — ask the user to describe each section heading and its content (freeform; see common patterns below)
 
+**Done when:** every field above has either a real value or an explicit "leave blank" / "not yet known" / "N/A" from the user. Don't go on to Step 2 having silently skipped a field you never asked about.
+
 ---
 
 ## Step 2: Clone the Live Template and Create the Page
@@ -45,7 +47,7 @@ Always the first table on the page. Fill these cells:
 |---|---|
 | Status | Leave as `DRAFT` (yellow lozenge) on creation |
 | Version | Integer, e.g. `4` |
-| Jira ticket | Link to `DI-XXXX` |
+| Jira ticket | Link to `DI-XXXX` — update both the text and the `href` |
 | Author | Author name |
 | Reviewed by | Reviewer name, or `N/A`; omit this row if entirely not applicable |
 | Approved by | Leave blank if not yet known |

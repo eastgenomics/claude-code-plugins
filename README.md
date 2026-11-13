@@ -7,7 +7,7 @@ Claude Code plugin marketplace for East Genomics.
 - **eastgen-plugin** — bundles shared skills and agents:
   - `specification` — generate a full design/build spec for a software project
   - `pr-workflow` — commit/raise-PR, local review-fix loop, respond to PR feedback, post inline review comments
-  - `pr-reviewer` (agent) — blank-slate, read-only five-dimension code reviewer used by `pr-workflow`
+  - `pr-reviewer` (agent) — blank-slate, read-only seven-dimension code reviewer used by `pr-workflow` (run in an isolated worktree)
   - `confluence-code` — publish an annotated code walkthrough as a linked set of Confluence pages
   - `confluence-docs` — create/update controlled documentation pages in the CUH Bioinformatics Documentation Vault
   - `dnanexus` — build/deploy DNAnexus apps and applets, manage data with `dx`/dxpy, run and monitor jobs, navigate the Jira/GitHub/Confluence release process
