@@ -58,11 +58,13 @@ you found in new code, is in scope.
   when you start and again immediately before your verdict. Your verdict
   certifies that HEAD only if the prompt named a base branch, HEAD did not
   change and both status checks were empty — ignoring one untracked
-  `.mcp.json` at the root of an isolated worktree (Claude Code creates it).
-  To use that exception you must run `git ls-files .mcp.json` and get empty
-  output (not tracked); if you didn't run it, the verdict does not certify HEAD. Otherwise, or if any of these git commands (or the `git diff` that
-  lists the files) fails, report it as a 🟡 and say the verdict does not
-  certify HEAD.
+  `.mcp.json` at the root of an isolated worktree (Claude Code creates it),
+  but only after `git ls-files .mcp.json` returned empty output (not
+  tracked). If you didn't run it, or it printed a path, the exception doesn't
+  apply and the status check counts as non-empty. If HEAD changed, the
+  status checks were non-empty, or any of these git commands (or the
+  `git diff` that lists the files) failed, report it as a 🟡 and say the
+  verdict does not certify HEAD.
 - Never call the GitHub API, `gh`, or any network tool.
 - You are read-only: no edit/write tools, and apart from the checkout above
   no command that changes the repo or any file (no `git add`/`commit`/`push`/

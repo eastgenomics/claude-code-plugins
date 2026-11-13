@@ -78,9 +78,11 @@ After the update, re-fetch **both** the published version and the draft.
 
 If the draft doesn't match the published version, **stop and tell the user**: publishing from edit mode would revert the change. Don't patch the draft separately — Atlassian advises against external changes to the draft object.
 
-When reporting, tell the user that both the published page and the edit-mode draft carry the change. **Test results (2026-11-13, private throwaway page in a personal space, not DV):**
+When reporting, tell the user that both the published page and the edit-mode draft carry the change.
+
+**Test results (2026-11-13, private throwaway page in a personal space, not DV):**
 - Draft-token publish (`d1:2` → v2): the published copy and the draft both carried the edit.
-- Draft-only update (`draft: true`): the draft carried the change, the published copy was unchanged — and the draft-vs-published comparison then shows a real difference, so the next edit stops as designed.
+- Draft-only update (`draft: true`): the draft carried the change, the published copy was unchanged — and so the Step 2 comparison would stop the next edit.
 - Published-token publish (`v:2`) while the draft held unpublished content: accepted, and this time the server merged it into the draft (edit applied, unpublished line kept). The 2026-11-11 loss did not reproduce in this simple case, but merging is not guaranteed (CONFCLOUD-80719), so the draft rule stands.
 
 Record the first use on a real DV page here too.
