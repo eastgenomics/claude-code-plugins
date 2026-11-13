@@ -34,7 +34,7 @@ Every page has two copies: the **published version** (what people see) and one s
 getConfluenceContent(cloudId: "cuhbioinformatics.atlassian.net", content_id: "<page_id>", content_format: "html", detail: "full", draft: true)
 ```
 
-It returns `status: "draft"` and a `snapshotToken` of the form `d1:<n>`. Node `data-local-id`s are the same as in the published body.
+It returns `status: "draft"` and a `snapshotToken` of the form `d1:<n>`. If the draft fetch fails, **stop and report the error** — never fall back to the published version's token. Node `data-local-id`s are the same as in the published body.
 
 **Then check the draft for someone else's unpublished work.** Fetch the published version too (the same call without `draft`) and compare the two **titles and bodies**, ignoring `data-local-id` attributes, the `_parentId` macro parameter, and the Page Properties macro's `id` parameter. If the draft differs in real content or title, someone has unpublished edits in the editor and publishing your change would publish theirs too (including over their title, since Step 3 sends a `title`) — **stop and ask the user** before going on.
 

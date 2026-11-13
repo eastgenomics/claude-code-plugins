@@ -13,7 +13,7 @@ So the loop is **one wide review, one triage, narrow checks of the fixes, one fi
 `<meta>` below is the main checkout's git directory as an absolute path
 (`git rev-parse --path-format=absolute --git-common-dir`). It works from linked worktrees too, where
 `.git` is a file. Each task gets its own directory, **`<task>` = `<meta>/pr-review/<branch-name>/`**
-(create it with `mkdir -p`; replace `/` in the branch name with `-`), so concurrent tasks in linked
+(create it with `mkdir -p`; replace `/` in the branch name with `-`; on a detached HEAD, e.g. the review-only path, use `pr-<number>`), so concurrent tasks in linked
 worktrees never share a ledger, PR body or prompt file. Every step — Step 2b's `gh pr create` /
 `gh pr edit` included — reads and writes only that task's files. Pass them to the reviewer by
 absolute path.
@@ -153,9 +153,11 @@ non-blocking findings, and a Clean post-final verification goes to Step 2b, not 
 fix, and verify them narrowly, using the remaining verification rounds; they need no new wide or
 final round — **but only if `<task>/ledger.md` records a completed wide review and final for this
 PR.** If it doesn't (the PR predates this workflow, or the ledger is missing), run Setup and the
-full loop from step 1 instead. At the start of every feedback pass, refresh `<task>/pr-body.md`
-from the PR's current body (`gh pr view <n> --json body --jq .body`) and re-apply the ledger's
-lines to it, so edits made on GitHub since the last push are not overwritten. The Clean verification's SHA is the pushable SHA. Feedback that changes the PR's
+full loop from step 1 instead. The PR body is never published from a stale copy: Step 2b
+re-fetches the PR's current body (`gh pr view <n> --json body --jq .body`) immediately before
+`gh pr edit`, and if it changed since `<task>/pr-body.md` was last refreshed, merges those
+GitHub-side edits into the draft — keeping the draft's ledger lines (`Deferred to …`, known
+limitations, `Local review:`) — or asks the user if they conflict. The Clean verification's SHA is the pushable SHA. Feedback that changes the PR's
 purpose or adds new work is a new task, with its own ledger section and budget.
 
 ## Budget
