@@ -20,7 +20,7 @@ Entry points:
 |---|---|
 | "commit and raise a PR" | Step 1 — Branch & commit |
 | "respond to review comments" / "address PR feedback" | Step 3 — Apply external feedback |
-| "review this PR" / "/pr-workflow review" | Step 2, review only: get the PR's SHAs (`gh pr view <n> --json baseRefName,headRefOid,baseRefOid`), fetch them (`git fetch --prune origin pull/<n>/head <base>`), and review `headRefOid` against `git merge-base <baseRefOid> <headRefOid>` as the base. Run Step 2 steps 1–2 (static analysis, the wide review, given the actual PR body as claims to check) once — not Step 3, and no replies — report the findings, stop. No fix subagent, no commits, no push, no PR edits (report a missing Jira link instead); Step 4 only if asked |
+| "review this PR" / "/pr-workflow review" | Step 2, review only: get the PR's SHAs (`gh pr view <n> --json baseRefName,headRefOid,baseRefOid`), fetch them (`git fetch --prune origin pull/<n>/head <base>`), and review `headRefOid` against `git merge-base <baseRefOid> <headRefOid>` as the base. Run Step 2 steps 1–2 (static analysis at that exact SHA — see step 1 — then the wide review, given the actual PR body as claims to check) once — not Step 3, and no replies — report the findings, stop. No fix subagent, no commits, no push, no PR edits (report a missing Jira link instead); Step 4 only if asked |
 
 Never proceed from one step to the next without explicit instruction from the user. Exception: a single trigger like "commit and raise a PR" authorizes the whole Step 1 → 2 → 2b chain in one go. Inside that chain, Step 2's triage with the user (and any stop-rule pause) is the planned stop: once the user has answered, carry on to Step 2b without asking again. The "no proceeding without instruction" rule is about not starting a *new* step (e.g. Step 3, or a fresh commit) on your own initiative after a chain completes.
 
@@ -55,7 +55,7 @@ The loop is **one wide review, one triage with the user, narrow checks of the fi
 
 **Steps:**
 
-1. **Static analysis and sweeps** — run [references/static-analysis.md](references/static-analysis.md) on the changed files and paste the output into every review prompt.
+1. **Static analysis and sweeps** — run [references/static-analysis.md](references/static-analysis.md) on the changed files **at the SHA under review**, and paste the output (with that SHA and each exit status) into every review prompt. If the main checkout is not clean at that SHA (e.g. on the review-only path), don't check it out over the user's work: run the checks in a `general-purpose` subagent with `isolation: "worktree"` that first runs `git checkout --detach <sha>` and returns the raw output and exit statuses. Re-run this step for the fix commits in Step 3 too.
 
 2. **Wide review** — 2–3 `pr-reviewer` calls in parallel (one message, several Agent calls) on the first SHA (shards for a large PR). Merge, dedupe, and give each finding an ID and a defect class.
 
@@ -63,18 +63,18 @@ The loop is **one wide review, one triage with the user, narrow checks of the fi
    - Never list fix code as settled: write "Fixed since round N — verify the fix itself", and give the **original finding text**, not a description of what the fix does.
    - Never give tool verdicts ("bandit clean", "tests pass") as a reason not to look. For outside facts the reviewer cannot check (API behaviour, docs, GitHub issues), paste the source excerpt or command output, not "verified".
    - Outside a verification round, a "focus on X" note is a priority, never the scope: always add "and anything else in the full diff". Never write "pre-existing, so low severity" or "file Y is out of scope".
-   - List the changed docs (README, CHANGELOG, specs), and give the commit messages and the draft PR body (`<meta>/pr-body.md`, see loop-control.md) as claims to check. If the work follows a plan file, give its path and say which parts are out of scope.
+   - List the changed docs (README, CHANGELOG, specs), and give the commit messages and the draft PR body (`<task>/pr-body.md`, see loop-control.md) as claims to check. If the work follows a plan file, give its path and say which parts are out of scope.
    - Give the **usage context** of each part (production/unattended, CI or test harness, hand-run docs/scripts), the **deployment facts** with their evidence, and the release/process context (who builds, signs off, publishes), and the ledger's `Decided by user`, `Explained` and `Deferred to` lists.
 
 3. **Triage with the user, once** — check each 🟡's reachability against the deployment facts, and ask the policy questions (loop-control.md §2). One table: fix / explain / defer. Unreachable triggers default to explain or defer.
 
 4. **Fix, then verify narrowly** — smallest fixes (the orchestrator makes small and docs fixes itself; never 🔵s), targeted tests, then a verification round scoped to the fix commits and their finding IDs (judge-only for docs or explanations). Check the stop rules after every round: a repeat of a defect class, two rounds with no reachable in-purpose 🟡, a finding returning after a fix, or the budget — any of them means pause and ask the user. A valid finding outside the PR's purpose goes to a tracking issue (with the user's agreement) and is listed as `Deferred to <link>: <original finding text>`.
 
-5. **Final unscoped round** — once the agreed 🟡s are closed (and agreed 🔵s applied in one commit): a fresh full `pr-reviewer` call, with step 1 re-run at that SHA, no focus areas and no verification scope, but with the ledger's decisions, explanations and deferrals (shard it for a large PR; every shard must report the same base and SHA). It confirms rather than discovers: a new 🟡 blocks the push only if it is in the PR's purpose, reachable, and in production code (or would make a published result or release decision wrong), and not in an already-deferred class; everything else goes to the PR body and tracking issue under the after-triage policy, without pausing (loop-control.md §4). Blocking 🟡s are triaged, fixed and verified narrowly — there is no second full final. If the budget is spent, stop — do not push — and offer: ship with known limitations in the PR body, defer, or extend.
+5. **Final unscoped round** — once the agreed 🟡s are closed (and agreed 🔵s applied in one commit): a fresh full `pr-reviewer` call, with step 1 re-run at that SHA, no focus areas and no verification scope, but with the ledger's decisions, explanations and deferrals (shard it for a large PR; every shard must report the same base and SHA). It confirms rather than discovers: a new 🟡 blocks the push only if it is in the PR's purpose, reachable, and in production code (or would make a published result or release decision wrong), and not in an already-deferred class — a material security exposure (e.g. CI secrets reachable by PR code) blocks regardless, and so does a verdict that does not certify the SHA; everything else goes to the PR body and tracking issue under the after-triage policy, without pausing (loop-control.md §4). Blocking 🟡s are triaged, fixed and verified narrowly — there is no second full final. If the budget is spent, stop — do not push — and offer: ship with known limitations in the PR body, defer, or extend.
 
 **Step 2b — Push and open/update PR:**
 
-Resolve the Jira link and check the push gate (both in Guardrails) before pushing. `<meta>/pr-body.md` (see loop-control.md → Setup) is the PR body: `## Summary`, deferrals, 🔵s not applied, test evidence, then
+Resolve the Jira link and check the push gate (both in Guardrails) before pushing. `<task>/pr-body.md` (see loop-control.md → Setup) is the PR body: `## Summary`, deferrals, 🔵s not applied, test evidence, then
 
 ```
 Local review: <N> rounds; final at <sha> (<k> non-blocking findings recorded); pushable SHA <sha>
@@ -93,13 +93,13 @@ New PR only:
 git branch --set-upstream-to=origin/<branch-name>
 ```
 ```bash
-gh pr create --base <base> --head <branch-name> --title "<70 chars>" --body-file <meta>/pr-body.md
+gh pr create --base <base> --head <branch-name> --title "<70 chars>" --body-file <task>/pr-body.md
 ```
 
 Existing PR — no `gh pr create`; publish the reviewed draft (it started from the current body):
 
 ```bash
-gh pr edit <number> --body-file <meta>/pr-body.md
+gh pr edit <number> --body-file <task>/pr-body.md
 ```
 
 Then check `gh pr view <number> --json baseRefName,headRefOid` matches the reviewed base and SHA. Print the PR URL. If you came here from Step 3, go back and finish its replies, then stop. Otherwise stop — wait for explicit instruction before proceeding.
@@ -124,7 +124,7 @@ gh api --paginate repos/{owner}/{repo}/pulls/{pr_number}/reviews
 
 CodeRabbit puts its "Nitpick comments", "Outside diff range comments" and "Duplicate comments" only in review bodies — triage every item there too.
 
-Triage each item as **Fix**, **Explain**, or **Skip**, with a reason. Apply all fixes in one editing pass and commit locally (no push yet). Then run Step 2 from step 3: triage with the user, fix, and verify narrowly with each original comment text as the finding (the task's ledger and verification budget carry over; no new wide or final round — loop-control.md §4, Later feedback). After the loop exits cleanly, push (Step 2b) and reply to every item, bot nitpicks included. If nothing is a Fix, skip the commit, loop and push, and just post the replies (plus any agreed deferral-ledger line in the PR body), without a `Local review:` line:
+Triage each item as **Fix**, **Explain**, or **Skip**, with a reason. Apply all fixes in one editing pass and commit locally (no push yet). Then refresh `<task>/pr-body.md` from the PR's current body, run Step 2 step 1 at the new SHA, and continue from step 3: triage with the user, fix, and verify narrowly with each original comment text as the finding (the task's ledger and verification budget carry over). That shortcut needs a ledger recording a completed wide review and final for this PR; without one, run the full Step 2 loop (loop-control.md §4, Later feedback). After the loop exits cleanly, push (Step 2b) and reply to every item, bot nitpicks included. If nothing is a Fix, skip the commit, loop and push, and just post the replies (plus any agreed deferral-ledger line in the PR body), without a `Local review:` line:
 
 - Never decline an item only by adding it to Known facts — it gets a reply.
 - Fix the risk, not the wording: if a comment pairs a mismatch with a risk, changing the docs to match the code is not a fix.
@@ -175,6 +175,8 @@ Then, as its own Bash call:
 ```bash
 gh api repos/{owner}/{repo}/pulls/{pr_number}/reviews --method POST --input <scratchpad>/review.json
 ```
+
+Inline comments can only go on lines inside the PR's diff — GitHub rejects the whole review otherwise. Put any finding without a valid diff location (e.g. a sibling instance elsewhere in the repo) in the review `body` instead, with its `path:line`.
 
 Verify: `gh api repos/{owner}/{repo}/pulls/{pr_number}/reviews/{review_id}/comments --jq '.[] | "\(.path) line \(.line): \(.body[:60])"'`
 

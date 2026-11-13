@@ -12,7 +12,11 @@ So the loop is **one wide review, one triage, narrow checks of the fixes, one fi
 
 `<meta>` below is the main checkout's git directory as an absolute path
 (`git rev-parse --path-format=absolute --git-common-dir`). It works from linked worktrees too, where
-`.git` is a file. Pass these files to the reviewer by absolute path.
+`.git` is a file. Each task gets its own directory, **`<task>` = `<meta>/pr-review/<branch-name>/`**
+(create it with `mkdir -p`; replace `/` in the branch name with `-`), so concurrent tasks in linked
+worktrees never share a ledger, PR body or prompt file. Every step — Step 2b's `gh pr create` /
+`gh pr edit` included — reads and writes only that task's files. Pass them to the reviewer by
+absolute path.
 
 - **Clean worktree.** Every `pr-reviewer` call runs with `isolation: "worktree"`, so another
   session's untracked files never block HEAD certification. Don't create review worktrees
@@ -21,7 +25,7 @@ So the loop is **one wide review, one triage, narrow checks of the fixes, one fi
   prompt names the HEAD SHA and the reviewer checks it out first (worktrees share the object
   store, so unpushed local commits are available). Commit before every round — the reviewer
   sees committed work only.
-- **Ledger** in `<meta>/pr-review-ledger.md` (untracked). It belongs to the **task**, not the loop:
+- **Ledger** in `<task>/ledger.md` (untracked). It belongs to the **task**, not the loop:
   keep it across resets, narrowing and restarts, with each finding's actual status (a finding
   `fixed in <sha>` on a discarded commit goes back to `open`; a fixed one still needs its
   verification). One line per finding:
@@ -33,17 +37,17 @@ So the loop is **one wide review, one triage, narrow checks of the fixes, one fi
   running count of full rounds.
 - **Deployment facts** in the ledger: the real inputs and configurations this code meets (panels,
   file properties, who runs it), each with how it was checked (a command and its output).
-- **Draft PR body** in `<meta>/pr-body.md` — for an existing PR, start from its current body
+- **Draft PR body** in `<task>/pr-body.md` — for an existing PR, start from its current body
   (`gh pr view <n> --json body --jq .body`): summary, deferrals, 🔵s not applied, known
   limitations, and test-run evidence. The reviewer checks its claims; Step 2b publishes it.
-- **Prompt file.** Write each review prompt to `<meta>/pr-review-prompt-<round>.md` (Write tool) in
+- **Prompt file.** Write each review prompt to `<task>/prompt-<round>.md` (Write tool) in
   a tool call *before* the one that launches the reviewer, and check it with `test -s`. Pass its
-  full text as the Agent prompt — the isolated reviewer can read `<meta>` by absolute path, but
+  full text as the Agent prompt — the isolated reviewer can read `<task>` by absolute path, but
   don't rely on it to go and find the file.
 - **Skill freshness.** At the start of each round, if `SKILL.md` or a file in `references/` has
   changed since you last read it, read it again.
 - `<meta>` is inside the repo's `.git`, which the sandbox allows writing to (checked 2026-11-13).
-  `gh` runs outside the sandbox and reads `<meta>/pr-body.md` by absolute path.
+  `gh` runs outside the sandbox and reads `<task>/pr-body.md` by absolute path.
 
 ## What goes into every prompt
 
@@ -87,13 +91,15 @@ one table:
 - **Tests.** Fix agents run targeted tests only. The orchestrator runs slow suites (platform or
   validation runs, and slow repo CI checks) at most once per HEAD, and only if
   `git diff --name-only <last-run-sha> HEAD` touches files they depend on; otherwise it passes the
-  recorded result from `<last-run-sha>` to the reviewer, with that diff as the reason it still holds. Record the evidence in `<meta>/pr-body.md`, not in commits.
+  recorded result from `<last-run-sha>` to the reviewer, with that diff as the reason it still holds. Record the evidence in `<task>/pr-body.md`, not in commits.
 - **Verification round.** A `pr-reviewer` call whose prompt names a **verification scope**: the
   fix commits (`git log --oneline <before>..HEAD`), and for each, the finding ID, class and
   original text. The reviewer judges each fix and looks for new problems the fix introduced,
-  within those commits. A docs-only or explanation-only change gets a judge-only prompt: the original finding
-  and the new wording or explanation, asking "Does this resolve the finding's risk, and is it
+  within those commits. An explanation, or a wording change with no behavioural effect, gets a
+  judge-only prompt: the original finding and the new wording or explanation, asking "Does this resolve the finding's risk, and is it
   correct?" with the context needed to judge (e.g. the older releases a rollout note must cover).
+  Changes to skill, agent or other instruction files are behaviour, not wording: they get the full
+  fix-commit verification above (including new problems introduced), never judge-only.
 - Repeat fix → verify until every agreed 🟡 is fixed, explained (and accepted), or deferred.
 
 ## Stop rules (check after every Not-clean round before the final)
@@ -123,6 +129,15 @@ new 🔴 blocks the push. A new 🟡 **blocks the push** only if all of these ho
   release decision wrong;
 - it is not in a class already deferred to an issue (add it to that issue instead).
 
+Exception: a 🔴/🟡 that is a **material security exposure** — credentials, write tokens or secrets
+reachable by untrusted code (e.g. a CI workflow that runs PR code with secrets or a write token) —
+blocks the push whatever its usage context. A passing CI run does not rule it out.
+
+**Certification.** Every final shard must certify the requested base and SHA (pr-reviewer.md →
+Constraints), and so must any post-final verification whose SHA would become the pushable SHA. A
+verdict that does not certify HEAD is never a non-blocking finding: fix the cause and rerun the
+round (a process failure, so it doesn't count against the budget), or stop and tell the user.
+
 Every other new 🟡, and every 🔵, goes where the after-triage policy says (default: the PR body as
 a known limitation, and the tracking issue), with no pause for the user. Then:
 - **Nothing blocking:** the final's SHA is the **pushable SHA**; go to Step 2b. The PR body lists
@@ -136,7 +151,11 @@ non-blocking findings, and a Clean post-final verification goes to Step 2b, not 
 
 **Later feedback (Step 3).** Fixes for review comments after the push are the same task: triage,
 fix, and verify them narrowly, using the remaining verification rounds; they need no new wide or
-final round. The Clean verification's SHA is the pushable SHA. Feedback that changes the PR's
+final round — **but only if `<task>/ledger.md` records a completed wide review and final for this
+PR.** If it doesn't (the PR predates this workflow, or the ledger is missing), run Setup and the
+full loop from step 1 instead. At the start of every feedback pass, refresh `<task>/pr-body.md`
+from the PR's current body (`gh pr view <n> --json body --jq .body`) and re-apply the ledger's
+lines to it, so edits made on GitHub since the last push are not overwritten. The Clean verification's SHA is the pushable SHA. Feedback that changes the PR's
 purpose or adds new work is a new task, with its own ledger section and budget.
 
 ## Budget

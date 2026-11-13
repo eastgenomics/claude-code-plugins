@@ -115,4 +115,4 @@ Don't reconstruct the skeleton from memory of the Content Guide — always start
 
 **Done when** (create modes): the page exists in Confluence with every Content Guide section populated (or explicitly marked "To be completed" where the reference allows it), and its URL has been reported back.
 
-**Done when** (update mode): the specific requested change is applied, verified by re-reading **both** the published page and the edit-mode draft, and any remaining manual step (permissions, archiving, ticket updates) from that reference file's Post-Update Reminders has been surfaced to the user.
+**Done when** (update mode): the specific requested change is applied, verified by re-reading **both** the published page and the edit-mode draft (for a draft-only update: the draft carries it and the published page is unchanged), and any remaining manual step (permissions, archiving, ticket updates) from that reference file's Post-Update Reminders has been surfaced to the user.

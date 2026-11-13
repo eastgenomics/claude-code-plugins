@@ -36,7 +36,7 @@ getConfluenceContent(cloudId: "cuhbioinformatics.atlassian.net", content_id: "<p
 
 It returns `status: "draft"` and a `snapshotToken` of the form `d1:<n>`. Node `data-local-id`s are the same as in the published body.
 
-**Then check the draft for someone else's unpublished work.** Fetch the published version too (the same call without `draft`) and compare the two bodies, ignoring `data-local-id` attributes, the `_parentId` macro parameter, and the Page Properties macro's `id` parameter. If the draft differs in real content, someone has unpublished edits in the editor and publishing your change would publish theirs too — **stop and ask the user** before going on.
+**Then check the draft for someone else's unpublished work.** Fetch the published version too (the same call without `draft`) and compare the two **titles and bodies**, ignoring `data-local-id` attributes, the `_parentId` macro parameter, and the Page Properties macro's `id` parameter. If the draft differs in real content or title, someone has unpublished edits in the editor and publishing your change would publish theirs too (including over their title, since Step 3 sends a `title`) — **stop and ask the user** before going on.
 
 Read the draft body (`data.body.value`) to:
 - Confirm the exact text and surrounding markup of what you intend to change
@@ -58,7 +58,7 @@ Change only the specific span of HTML that needs to change — keep everything e
 updateConfluenceContent(cloudId: "cuhbioinformatics.atlassian.net", contentId: "<page_id>", snapshotToken: "<d1: token from the draft fetch>", title: "<title>", body: {format: "html", value: "<edited html>"})
 ```
 
-`draft: true` on the update saves to the draft **without publishing** — use it only when the user asks for an unpublished change. If the call reports the token as missing, published-base or stale (`snapshot_stale`), re-fetch the **draft** and reapply the edit to the new body; don't resend the same payload with the returned token. Each successful update returns a new `snapshot.token`; a second edit in the same task needs that token or a fresh draft fetch. For a small change you may instead use `edits` (e.g. `replaceNode` on the target's `data-local-id`) — see HTML_DIALECT.md → Update Mechanics. Pass the existing title unchanged unless the title itself is part of the edit.
+`draft: true` on the update saves to the draft **without publishing** — use it only when the user asks for an unpublished change. If the call reports the token as missing, published-base or stale (`snapshot_stale`), go back to Step 2 — fetch both copies again, **repeat the comparison**, and reapply the edit to the new draft body with its new token; don't resend the same payload. The same applies to a second edit in the same task: every publish attempt starts from a fresh Step 2, never from a token returned by an earlier update. For a small change you may instead use `edits` (e.g. `replaceNode` on the target's `data-local-id`) — see HTML_DIALECT.md → Update Mechanics. Pass the existing title unchanged unless the title itself is part of the edit.
 
 **Safety rules:**
 - Include enough surrounding markup that the targeted text is uniquely identified before changing it
@@ -71,7 +71,9 @@ updateConfluenceContent(cloudId: "cuhbioinformatics.atlassian.net", contentId: "
 
 After the update, re-fetch **both** the published version and the draft.
 
-- **Published:** confirm the change landed as intended — compare the whole body with the original, not just the edited span (the server can re-serialise other markup; see HTML_DIALECT.md → Update Mechanics). Not optional for anything involving an extension node: Confluence silently drops macros it can't resolve.
+**Draft-only update** (`draft: true`, user asked for an unpublished change): confirm the draft carries the change and the published copy is **unchanged** from Step 2. Tell the user publication is still pending. The checks below are for published updates only.
+
+- **Published:** confirm the change landed as intended, with the intended title — compare the whole body with the original, not just the edited span (the server can re-serialise other markup; see HTML_DIALECT.md → Update Mechanics). Not optional for anything involving an extension node: Confluence silently drops macros it can't resolve.
 - **Draft:** confirm it carries the same change (ignore the differences listed in Step 2).
 
 If the draft doesn't match the published version, **stop and tell the user**: publishing from edit mode would revert the change. Don't patch the draft separately — Atlassian advises against external changes to the draft object.
