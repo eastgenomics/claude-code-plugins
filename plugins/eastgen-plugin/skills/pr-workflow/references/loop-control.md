@@ -13,7 +13,7 @@ So the loop is **one wide review, one triage, narrow checks of the fixes, one fi
 `<meta>` below is the main checkout's git directory as an absolute path
 (`git rev-parse --path-format=absolute --git-common-dir`). It works from linked worktrees too, where
 `.git` is a file. Each task gets its own directory, **`<task>` = `<meta>/pr-review/<branch-name>/`**
-(create it with `mkdir -p`; replace `/` in the branch name with `-`; on a detached HEAD, e.g. the review-only path, use `pr-<number>`), so concurrent tasks in linked
+(create it with `mkdir -p`, keeping any `/` in the branch name as a subdirectory — git forbids branches `a` and `a/b` existing together, so paths can't collide; on a detached HEAD, e.g. the review-only path, use `pr-<number>`), so concurrent tasks in linked
 worktrees never share a ledger, PR body or prompt file. Every step — Step 2b's `gh pr create` /
 `gh pr edit` included — reads and writes only that task's files. Pass them to the reviewer by
 absolute path.
@@ -111,8 +111,9 @@ governs. After a Not-clean round, **pause and ask the user**, with the triage ta
   accepted"). Later findings in the class with the same consequence are covered; one with a worse
   consequence (e.g. a wrong result is published) is a new question for the user.
 - **No gain.** Two consecutive rounds produced no reachable, in-purpose 🟡.
-- **Return.** A finding comes back a second time after being fixed: it must be explained or
-  deferred, never strengthened again.
+- **Return.** A finding comes back a second time after being fixed: by default it is explained or
+  deferred, not strengthened again — unless the user, at this pause, decides to try another fix
+  (within the verification budget).
 - **Budget.** Full rounds for this task have reached the cap.
 
 ## 4. Final unscoped round (one per task)
@@ -136,7 +137,8 @@ blocks the push whatever its usage context. A passing CI run does not rule it ou
 **Certification.** Every final shard must certify the requested base and SHA (pr-reviewer.md →
 Constraints), and so must any post-final verification whose SHA would become the pushable SHA. A
 verdict that does not certify HEAD is never a non-blocking finding: fix the cause and rerun the
-round (a process failure, so it doesn't count against the budget), or stop and tell the user.
+round (a process failure, so it doesn't count against the budget) — at most twice; after a
+second uncertified rerun, stop and tell the user.
 
 Every other new 🟡, and every 🔵, goes where the after-triage policy says (default: the PR body as
 a known limitation, and the tracking issue), with no pause for the user. Then:
