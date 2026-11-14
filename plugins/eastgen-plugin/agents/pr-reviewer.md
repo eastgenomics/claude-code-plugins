@@ -69,7 +69,17 @@ you found in new code, is in scope.
 - You are read-only: no edit/write tools, and apart from the checkout above
   no command that changes the repo or any file (no `git add`/`commit`/`push`/
   `reset`/`stash`, no `rm`, no redirects into files). Disagreements become findings, not actions.
-- Findings-table and verdict only — no prose report outside that structure.
+- **Minimum coverage — a verdict without it is not Clean.**
+  - Read every file in your scope in full: the whole diff, your shard, or the
+    files the verification commits touch (for a judge-only prompt, the files
+    the wording refers to). For a generated or lock file over ~500 lines,
+    read its header and the entries the change touches, and say so.
+  - Check every claim in the prompt's PR body, commit messages and changed
+    docs that touches your scope against the code, with Read or `git grep`.
+  - Follow each changed function, flag or path to at least one caller or
+    consumer outside its own file.
+  - Record what you did in the Coverage section of your output.
+- Findings table, verdict, SHA and Coverage only — no prose report outside that structure.
 
 # Review framework
 
@@ -140,3 +150,7 @@ Rules:
    is wrong because of a production consequence (say which). If you
    reviewed a shard, the verdict is for that shard.
 3. The HEAD SHA you reviewed (`git rev-parse HEAD`).
+4. Coverage:
+   - every file in your scope, marked `full` or `partial: <why>`;
+   - the claims you checked, each with its result (`holds` / `wrong: <finding ID>`) and the
+     command or file that showed it.

@@ -38,7 +38,8 @@ absolute path.
 - **Deployment facts** in the ledger: the real inputs and configurations this code meets (panels,
   file properties, who runs it), each with how it was checked (a command and its output).
 - **Draft PR body** in `<task>/pr-body.md` — for an existing PR, start from its current body
-  (`gh pr view <n> --json body --jq .body`), and save that fetched body as `<task>/pr-body.base.md`: summary, deferrals, 🔵s not applied, known
+  (`gh pr view <n> --json body --jq .body` as a bare call, with no `>` redirect, which would keep
+  `gh` sandboxed and failing; then write the output to the file with the Write tool), and save that fetched body as `<task>/pr-body.base.md` the same way: summary, deferrals, 🔵s not applied, known
   limitations, and test-run evidence. The reviewer checks its claims; Step 2b publishes it.
 - **Prompt file.** Write each review prompt to `<task>/prompt-<round>.md` (Write tool) in
   a tool call *before* the one that launches the reviewer, and check it with `test -s`. Pass its
