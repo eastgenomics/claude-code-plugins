@@ -12,8 +12,8 @@ So the loop is **one wide review, one triage, narrow checks of the fixes, one fi
 
 `<meta>` below is the main checkout's git directory as an absolute path
 (`git rev-parse --path-format=absolute --git-common-dir`). It works from linked worktrees too, where
-`.git` is a file. Each task gets its own directory, **`<task>` = `<meta>/pr-review/<branch-name>/`**
-(create it with `mkdir -p`, keeping any `/` in the branch name as a subdirectory — git forbids branches `a` and `a/b` existing together, so paths can't collide; on a detached HEAD, e.g. the review-only path, use `_detached/pr-<number>`), so concurrent tasks in linked
+`.git` is a file. Each task gets its own directory, **`<task>` = `<meta>/pr-review/branches/<branch-name>/`**
+(create it with `mkdir -p`, keeping any `/` in the branch name as a subdirectory — git forbids branches `a` and `a/b` existing together, so paths can't collide; on a detached HEAD, e.g. the review-only path, use `<meta>/pr-review/detached/pr-<number>/` — a separate namespace, so no branch name can map onto it), so concurrent tasks in linked
 worktrees never share a ledger, PR body or prompt file. Every step — Step 2b's `gh pr create` /
 `gh pr edit` included — reads and writes only that task's files. Pass them to the reviewer by
 absolute path.
