@@ -20,7 +20,7 @@ Entry points:
 |---|---|
 | "commit and raise a PR" | Step 1 — Branch & commit |
 | "respond to review comments" / "address PR feedback" | Step 3 — Apply external feedback |
-| "review this PR" / "/pr-workflow review" | Step 2, review only: get the PR's SHAs (`gh pr view <n> --json baseRefName,headRefOid,baseRefOid`), fetch them (`git fetch --prune origin pull/<n>/head <base>`), and review `headRefOid` against `git merge-base <baseRefOid> <headRefOid>` as the base. Run Step 2 steps 1–2 (static analysis at that exact SHA — see step 1 — then the wide review, given the actual PR body as claims to check) once — not Step 3, and no replies — report the findings, stop. No fix subagent, no commits, no push, no PR edits (report a missing Jira link instead); Step 4 only if asked |
+| "review this PR" / "/pr-workflow review" | Step 2, review only: get the PR's SHAs (`gh pr view <n> --json baseRefName,headRefOid,baseRefOid`). If both are already local (`git cat-file -e <headRefOid>^{commit}` and `git cat-file -e <baseRefOid>^{commit}` succeed), skip the fetch. Otherwise fetch them (`git fetch --prune origin pull/<n>/head <base>`); on a private repo that fails in the sandbox, so ask the user to run it with `! git fetch …`. Files go in `<task>` = `<meta>/pr-review/detached/pr-<n>/` (loop-control.md → Setup): `pr-body.md` (the actual PR body, written with the Write tool; no `pr-body.base.md`, since nothing is published), the prompt files (`prompt-common.md` plus `prompt-1-<shard>.md` per shard is fine), and `ledger.md` with the merged findings and one `1 \| wide (review-only)` round row. That ledger never counts as a completed wide review and final for Step 3's shortcut. Review `headRefOid` against `git merge-base <baseRefOid> <headRefOid>` as the base. Run Step 2 steps 1–2 (static analysis at that exact SHA — see step 1 — then the wide review, given the actual PR body as claims to check) once — not Step 3, and no replies — report the findings, stop. No fix subagent, no commits, no push, no PR edits (report a missing Jira link instead); Step 4 only if asked |
 
 Never proceed from one step to the next without explicit instruction from the user. Exception: a single trigger like "commit and raise a PR" authorizes the whole Step 1 → 2 → 2b chain in one go. Inside that chain, Step 2's triage with the user (and any stop-rule pause) is the planned stop: once the user has answered, carry on to Step 2b without asking again. The "no proceeding without instruction" rule is about not starting a *new* step (e.g. Step 3, or a fresh commit) on your own initiative after a chain completes.
 
@@ -30,11 +30,11 @@ Every PR body links its Jira issue — see the Jira link guardrail below.
 
 ## Step 1 — Branch & commit
 
-Local git (`status`, `diff`, `checkout`, `add`, `commit`, `fetch`) works fine inside the sandbox and can be chained. Only `gh` and `git push` need single bare calls — see the sandbox guardrail.
+Local git (`status`, `diff`, `checkout`, `add`, `commit`) works fine inside the sandbox and can be chained. `git fetch` works sandboxed only for public repos. On a private repo it fails with "could not read Username", so ask the user to run it with `! git fetch …`. Only `gh` and `git push` need single bare calls (see the sandbox guardrail).
 
 ```bash
 git status && git diff          # understand what's changed
-git checkout -b <kebab-name>    # descriptive branch name
+git checkout -b <kebab-name>    # descriptive branch name; from a remote start point add --no-track (tracking writes .git/config, which the sandbox blocks)
 git add <specific files>        # never git add -A or git add .
 git commit -m "<type>: <imperative summary>
 
@@ -49,7 +49,7 @@ Proceed immediately to Step 2.
 
 ## Step 2 — Review-fix loop (local only)
 
-The loop is **one wide review, one triage with the user, narrow checks of the fixes, one final round** — see [references/loop-control.md](references/loop-control.md) for the setup (task ledger with defect classes and deployment facts, draft PR body, prompt files), the stop rules and the budget (2 full rounds per task: the wide review and the final). Every review prompt names the **base** and the HEAD SHA. `git fetch --prune` first, and give the base as a commit (`origin/<base>`), never a possibly stale local branch. For an existing PR, before any fixes (Step 1 or Step 3), check the local branch is at the PR's `headRefOid` (`gh pr view <number> --json baseRefName,baseRefOid,headRefOid`), record those, and take the base from it; just before pushing, query them again and check the base name, base OID and remote head are what you recorded. If any changed, rerun the loop.
+The loop is **one wide review, one triage with the user, narrow checks of the fixes, one final round** — see [references/loop-control.md](references/loop-control.md) for the setup (task ledger with defect classes and deployment facts, draft PR body, prompt files), the stop rules and the budget (2 full rounds per task: the wide review and the final). Every review prompt names the **base** and the HEAD SHA. `git fetch --prune` first. On a private repo, ask the user to run it with `! git fetch --prune`, and if it can't run, stop: don't review against a possibly stale `origin/<base>`. Give the base as a commit (`origin/<base>`), never a possibly stale local branch. For an existing PR, before any fixes (Step 1 or Step 3), check the local branch is at the PR's `headRefOid` (`gh pr view <number> --json baseRefName,baseRefOid,headRefOid`), record those, and take the base from it; just before pushing, query them again and check the base name, base OID and remote head are what you recorded. If any changed, rerun the loop.
 
 **Launching the reviewer.** Always the bundled agent — `subagent_type: "eastgen-plugin:pr-reviewer"`, never `general-purpose` — with **`isolation: "worktree"`**. It's a blank-slate agent ([agents/pr-reviewer.md](../../agents/pr-reviewer.md) — single source of truth for the review framework, don't restate it here) with the model already configured — don't pass `model` in the call. The isolated worktree is created from the default branch, so the prompt must name the HEAD SHA: the reviewer checks it out (`git checkout --detach <sha>`) before reviewing. Only **committed** work is visible to it — commit before every review round. Reports: findings table, clean/not-clean verdict, and the HEAD SHA it reviewed.
 
@@ -57,7 +57,7 @@ The loop is **one wide review, one triage with the user, narrow checks of the fi
 
 1. **Static analysis and sweeps** — run [references/static-analysis.md](references/static-analysis.md) on the changed files **at the SHA under review**, and paste the output (with that SHA and each exit status) into every review prompt. If the main checkout is not clean at that SHA (e.g. on the review-only path), don't check it out over the user's work: run the checks in a `general-purpose` subagent with `isolation: "worktree"` that first runs `git checkout --detach <sha>` and returns the raw output and exit statuses. Re-run this step for the fix commits in Step 3 too.
 
-2. **Wide review** — 2–3 `pr-reviewer` calls in parallel (one message, several Agent calls) on the first SHA (shards for a large PR). Merge, dedupe, and give each finding an ID and a defect class.
+2. **Wide review** — 2–3 `pr-reviewer` calls in parallel (one message, several Agent calls) on the first SHA (shards for a large PR). Check the `Coverage` section of each report, here and in every later `pr-reviewer` round, against its scope. A reviewer that didn't read every file in its scope, or checked no claims, is a process failure. Rerun that call, at most twice, then stop and tell the user (loop-control.md §4 Certification). Then merge, dedupe, and give each finding an ID and a defect class.
 
    **What goes into the prompt.** The reviewer has no memory of previous rounds, so pass a `Known facts` block, or it re-raises the same triaged findings every round — but only for **decisions and environment facts** (e.g. `"Django test runner creates data/ if absent — CI proves this"`, `"X is deliberate because Y"`).
    - Never list fix code as settled: write "Fixed since round N — verify the fix itself", and give the **original finding text**, not a description of what the fix does.
@@ -87,13 +87,16 @@ Then run each of these as its **own** Bash call, from the repo's working directo
 git push origin <reviewed-sha>:refs/heads/<branch-name>
 ```
 
-New PR only:
+New PR only — **required**:
+
+```bash
+gh pr create --base <base> --head <branch-name> --title "<70 chars>" --body-file <task>/pr-body.md
+```
+
+Then, optionally, set the upstream for the user's convenience. This writes `.git/config`, which the sandbox blocks ("could not lock config file"). If only this step fails, skip it and tell the user, since every push here names its ref explicitly:
 
 ```bash
 git branch --set-upstream-to=origin/<branch-name>
-```
-```bash
-gh pr create --base <base> --head <branch-name> --title "<70 chars>" --body-file <task>/pr-body.md
 ```
 
 Existing PR — no `gh pr create`; follow the PR-body guardrail (re-fetch and merge) first, then publish:

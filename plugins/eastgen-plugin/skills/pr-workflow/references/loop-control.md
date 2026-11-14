@@ -38,7 +38,8 @@ absolute path.
 - **Deployment facts** in the ledger: the real inputs and configurations this code meets (panels,
   file properties, who runs it), each with how it was checked (a command and its output).
 - **Draft PR body** in `<task>/pr-body.md` — for an existing PR, start from its current body
-  (`gh pr view <n> --json body --jq .body`), and save that fetched body as `<task>/pr-body.base.md`: summary, deferrals, 🔵s not applied, known
+  (`gh pr view <n> --json body --jq .body` as a bare call, with no `>` redirect, which would keep
+  `gh` sandboxed and failing; then write the output to the file with the Write tool), and save that fetched body as `<task>/pr-body.base.md` the same way: summary, deferrals, 🔵s not applied, known
   limitations, and test-run evidence. The reviewer checks its claims; Step 2b publishes it.
 - **Prompt file.** Write each review prompt to `<task>/prompt-<round>.md` (Write tool) in
   a tool call *before* the one that launches the reviewer, and check it with `test -s`. Pass its
@@ -137,8 +138,11 @@ blocks the push whatever its usage context. A passing CI run does not rule it ou
 **Certification.** Every final shard must certify the requested base and SHA (pr-reviewer.md →
 Constraints), and so must any post-final verification whose SHA would become the pushable SHA. A
 verdict that does not certify HEAD is never a non-blocking finding: fix the cause and rerun the
-round (a process failure, so it doesn't count against the budget) — at most two reruns; if the
-second rerun is also uncertified, stop and tell the user.
+round (a process failure, so it doesn't count against the budget). The same applies to shallow
+coverage. On **every** `pr-reviewer` result (wide, verification or final), check its `Coverage`
+section against its scope. If it didn't read every file in its scope, or checked no claims, the
+result can't be used: rerun that call. Uncertified and shallow reruns share one cap of two reruns
+per round. If the second rerun is still uncertified or shallow, stop and tell the user.
 
 Every other new 🟡, and every 🔵, goes where the after-triage policy says (default: the PR body as
 a known limitation, and the tracking issue), with no pause for the user. Then:
@@ -166,7 +170,8 @@ purpose or adds new work is a new task, with its own ledger section and budget.
   shards counts as one. The count survives resets and narrowing.
 - **Verification rounds: up to 5 per task.** Running out of verification rounds does not use up the
   final round: ask the user whether to run it with the open items deferred or listed.
-- A round that failed for a process reason (the reviewer did not get its prompt, a tool error)
-  does not count; fix the cause and rerun it (uncertified-verdict reruns are capped at two, see §4).
+- A round that failed for a process reason (the reviewer did not get its prompt, a tool error, an
+  uncertified verdict, shallow coverage) does not count; fix the cause and rerun it.
+  Uncertified and shallow reruns are capped at two per round (see §4 Certification).
 - **Budget spent** (verification rounds used up with a blocking 🟡 still open): stop, do not push. Offer the user: ship with the ledger's open items listed in
   the PR body as known limitations, defer them, or extend the budget.
