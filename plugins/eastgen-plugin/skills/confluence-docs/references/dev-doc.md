@@ -18,6 +18,8 @@ Ask for anything not provided in the arguments:
 - **Changes**: what changed from the previous version (or "First release — not applicable")
 - **Overall Outcome**: pass/fail recommendation, or "To be completed" if not ready
 
+**Done when:** every field above has either a real value or an explicit "leave blank" / "not yet known" from the user. Don't go on to Step 2 having silently skipped a field you never asked about.
+
 ---
 
 ## Step 2: Fetch GitHub Content
@@ -25,10 +27,12 @@ Ask for anything not provided in the arguments:
 If a GitHub repo or PR link is provided, fetch:
 
 - `README.md` — for the tool summary and purpose
-- `docs/` files (`architecture.md`, `testing.md`, `config-guide.md`, etc.) — for design and test details
+- Every file actually present under `docs/` (`architecture.md`, `testing.md`, `config-guide.md`, etc.) — for design and test details
 - The PR page — for commit hash, file counts, and PR description
 
 Use this content to populate the document. Don't ask the user to re-describe work that's already in GitHub.
+
+**Done when:** `README.md` and every `docs/*.md` file that exists in the repo has been read at least once — not just the first one found — or there is no repo/PR link to fetch from.
 
 ---
 
@@ -72,13 +76,14 @@ Commit hash, branch, `dx build` command, published app ID (`app-XXXX`), DNAnexus
 
 **H2: Summary table** — one row per test, with green PASS / red FAIL status lozenges (not ✅ emoji).
 
-**H2 per test: `Tn — <Test name>`** — each test case is its own H2. Every H2 must contain:
+**H2 per test: `Tn — <Test name>`** — each test case is its own H2, repeating the same 🐕‍🦺 emoji as the cloned template (see SKILL.md → Heading emojis). Every H2 must contain:
 
 1. **Testing strategy** — what was tested, which job/app version, which samples/files.
 2. **Expected outcome** — what a passing result looks like.
 3. **Provenance of Results** (expand section) — collapsible, containing:
    - **Link to job(s)** — every DNAnexus job ID as a real hyperlink (see URL format below). A plain code span is not sufficient.
    - **Commands used** — the actual `dx run` / `dx describe` / `dx cat` commands in a code block, including the exact app/applet ID, all `-i` inputs, and `--destination`.
+   - The code blocks must be complete enough for each test to be reproduced independently.
 4. **Test output** — actual results: job state (`done`), file IDs, observed metric values, code block output from `dx cat` / `dx describe`.
 5. **Test outcome** — a green/red status lozenge (PASS / FAIL). Not a text word, not an emoji.
 6. **Tip panel** — one-line plain-English outcome summary.

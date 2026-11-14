@@ -2,7 +2,7 @@
 
 Use this reference when the mode is `update`. Follow these steps in order.
 
-Every edit starts from a fresh fetch of the page's HTML+ body and its `snapshotToken`. Then either send back a **full-body replace** (change only the target span, keep everything else byte-for-byte) or a batch of granular **`edits`** that target nodes by their fetched `data-local-id`. See [../../../shared/confluence/HTML_DIALECT.md](../../../shared/confluence/HTML_DIALECT.md) → Update Mechanics.
+Every edit starts from a fresh fetch of the page's **edit-mode draft** (`draft: true`) — its HTML+ body and its `snapshotToken` (`d1:<n>`) — never the published version. Then either send back a **full-body replace** (change only the target span, keep everything else byte-for-byte) or a batch of granular **`edits`** that target nodes by their fetched `data-local-id`. See [../../../shared/confluence/HTML_DIALECT.md](../../../shared/confluence/HTML_DIALECT.md) → Update Mechanics.
 
 ---
 
@@ -24,15 +24,21 @@ Show the user the candidate page(s) (title + URL) and get confirmation of which 
 
 ---
 
-## Step 2: Inspect the Body First
+## Step 2: Fetch the Draft and Inspect It
 
 **Always fetch and read the body before writing any edit.** You cannot safely target text without knowing the page's actual current content.
 
+Every page has two copies: the **published version** (what people see) and one shared **editor draft** (what edit mode opens and what a user publishes). Edits must be based on the **draft** — this is what the `updateConfluenceContent` tool description prescribes. On 2026-11-11 (DV page 4872339479) edits made from the published version (`v:<n>` token) showed on the page but never reached the draft; a user who then opened edit mode and published silently reverted them, twice. See HTML_DIALECT.md → Update Mechanics.
+
 ```
-getConfluenceContent(cloudId: "cuhbioinformatics.atlassian.net", content_id: "<page_id>", content_format: "html", detail: "full")
+getConfluenceContent(cloudId: "cuhbioinformatics.atlassian.net", content_id: "<page_id>", content_format: "html", detail: "full", draft: true)
 ```
 
-Read the returned body (`data.body.value`) to:
+It returns `status: "draft"` and a `snapshotToken` of the form `d1:<n>`. If the draft fetch fails, **stop and report the error** — never fall back to the published version's token. Node `data-local-id`s can **differ** from the published body's (seen on a freshly created page, 2026-11-13) — take `localId`s for granular `edits` from the draft fetch, never the published one.
+
+**Then check the draft for someone else's unpublished work.** Fetch the published version too (the same call without `draft`) and compare the two **titles and bodies**, ignoring `data-local-id` attributes, the `_parentId` macro parameter, and the Page Properties macro's `id` parameter. If the draft differs in real content or title, someone has unpublished edits in the editor and publishing your change would publish theirs too (including over their title, since Step 3 sends a `title`) — **stop and ask the user** before going on.
+
+Read the draft body (`data.body.value`) to:
 - Confirm the exact text and surrounding markup of what you intend to change
 - Check whether a given text value appears more than once (e.g. "N/A" may appear in many cells — include enough surrounding context to make the target unique, the same discipline as any exact-match text edit)
 - Identify table structure (how many rows, what labels are in the first column) before editing a specific cell
@@ -40,24 +46,46 @@ Read the returned body (`data.body.value`) to:
 
 If the fetch didn't return `metadata.hasSpaceInstructions: false`, load the space instructions per `../SKILL.md` → Access before editing.
 
-Only write the edit once you've seen the actual body.
+Only write the edit once you've seen the actual draft body.
 
 ---
 
-## Step 3: Make the Edit and Send It Back
+## Step 3: Make the Edit and Publish It
 
-Change only the specific span of HTML that needs to change — keep everything else byte-for-byte as fetched — then call:
+Change only the specific span of HTML that needs to change — keep everything else byte-for-byte as fetched from the draft — then call `updateConfluenceContent` with the **draft's** `snapshotToken`, **without** `draft` (which publishes):
 
 ```
-updateConfluenceContent(cloudId: "cuhbioinformatics.atlassian.net", contentId: "<page_id>", snapshotToken: "<token from the fetch>", title: "<title>", body: {format: "html", value: "<edited html>"})
+updateConfluenceContent(cloudId: "cuhbioinformatics.atlassian.net", contentId: "<page_id>", snapshotToken: "<d1: token from the draft fetch>", title: "<title>", body: {format: "html", value: "<edited html>"})
 ```
 
-`updateConfluenceContent` needs the **`snapshotToken`** from the fetch (not a version number); if it returns `snapshot_stale`, re-fetch and reapply. For a small change you may instead use `edits` (e.g. `replaceNode` on the target's `data-local-id`) — see HTML_DIALECT.md → Update Mechanics. Pass the existing title unchanged unless the title itself is part of the edit.
+`draft: true` on the update saves to the draft **without publishing** — use it only when the user asks for an unpublished change. If the call reports the token as missing, published-base or stale (`snapshot_stale`), go back to Step 2 — fetch both copies again, **repeat the comparison**, and reapply the edit to the new draft body with its new token; don't resend the same payload. If it is stale twice in a row, stop and tell the user — someone is actively editing the page. The same applies to a second edit in the same task: every publish attempt starts from a fresh Step 2, never from a token returned by an earlier update. For a small change you may instead use `edits` (e.g. `replaceNode` on the target's `data-local-id`) — see HTML_DIALECT.md → Update Mechanics. Pass the existing title unchanged unless the title itself is part of the edit.
 
 **Safety rules:**
 - Include enough surrounding markup that the targeted text is uniquely identified before changing it
 - Change only the specific nodes that need to change, keeping everything else — including `data-local-id` attributes — verbatim
-- Re-fetch after the update and confirm the change landed as intended — compare the whole body with the original, not just the edited span (the server can re-serialise other markup; see HTML_DIALECT.md → Update Mechanics)
+- Never base an edit on the published body (`v:<n>` token) — that is the case that loses edits
+
+---
+
+## Step 4: Verify Both Copies
+
+After the update, re-fetch **both** the published version and the draft.
+
+**Draft-only update** (`draft: true`, user asked for an unpublished change): confirm the draft carries the change and the published copy is **unchanged** from Step 2. Tell the user publication is still pending. The checks below are for published updates only.
+
+- **Published:** confirm the change landed as intended, with the intended title — compare the whole body with the original, not just the edited span (the server can re-serialise other markup; see HTML_DIALECT.md → Update Mechanics). Not optional for anything involving an extension node: Confluence silently drops macros it can't resolve.
+- **Draft:** confirm it carries the same change (ignore the differences listed in Step 2).
+
+If the draft doesn't match the published version, **stop and tell the user**: publishing from edit mode would revert the change. Don't patch the draft separately — Atlassian advises against external changes to the draft object.
+
+When reporting, tell the user that both the published page and the edit-mode draft carry the change.
+
+**Test results (2026-11-13, private throwaway page in a personal space, not DV):**
+- Draft-token publish (`d1:2` → v2): the published copy and the draft both carried the edit.
+- Draft-only update (`draft: true`): the draft carried the change, the published copy was unchanged — and so the Step 2 comparison would stop the next edit.
+- Published-token publish (`v:2`) while the draft held unpublished content: accepted, and this time the server merged it into the draft (edit applied, unpublished line kept). The 2026-11-11 loss did not reproduce in this simple case, but merging is not guaranteed (CONFCLOUD-80719), so the draft rule stands.
+
+Record the first use on a real DV page here too.
 
 ---
 
@@ -67,7 +95,7 @@ updateConfluenceContent(cloudId: "cuhbioinformatics.atlassian.net", contentId: "
 
 Applies to all document types. Updates the status lozenge, the Approved by cell, and — only where the header has one — the Approved and locked date cell. Only the Manual / Policy header has an "Approved and locked date" row (see Document-Type Field Reference below); Development & Testing and Controlled File headers don't, so for those apply changes 1 and 2 only and don't invent a date row.
 
-Fetch the body, then apply the applicable changes before sending it back once:
+Fetch the draft body (Step 2), then apply the applicable changes before sending it back once:
 
 1. Status lozenge → change only `data-color="yellow"` → `"green"` and the text `DRAFT` → `APPROVED`; keep every other attribute on the `<span>` (e.g. `data-status-style="bold"`, `data-local-id`) verbatim
 2. "Approved by" table cell → find the `<tr>` whose first `<td>` is `<p>Approved by</p>`, replace the second `<td>`'s contents (or the `<span data-type="placeholder">...</span>` inside it) with the approver's name
@@ -85,7 +113,7 @@ Replace everything between the target `<h1>`/`<h2>` and the next heading of the 
 
 ### Add a new test scenario section
 
-Insert a new `<h2>` block plus its content immediately before the next `<h1>` (or at the end of the document if there isn't one) — don't touch the existing scenarios.
+Insert a new `<h2>` block plus its content immediately before the next `<h1>` (or at the end of the document if there isn't one) — don't touch the existing scenarios. Reuse the emoji the existing `Test Scenario Title` headings on this page already use (see `../SKILL.md` → Heading emojis) — don't invent a new one.
 
 ### Update the page title (e.g. remove DRAFT)
 
@@ -103,7 +131,7 @@ Insert a new `<tr>` immediately before the table's closing `</tbody></table>`.
 
 ## Granular edits for sign-off (verified on v2)
 
-Instead of resending the whole body, a sign-off can be done as one batch of `edits` against the fetched body (get `snapshotToken` + `data-local-id`s from the fetch). Tested pattern, in a Page Properties table:
+Instead of resending the whole body, a sign-off can be done as one batch of `edits` against the fetched body (get the draft `snapshotToken` + `data-local-id`s from the draft fetch, Step 2). Tested pattern, in a Page Properties table:
 
 ```
 edits: [
@@ -117,13 +145,13 @@ Include the third edit only if the fetched header table actually has an "Approve
 
 - Target the **`<p>` inside the value cell, not the `<td>`** — replacing a `<td>` with a `<p>` deletes the cell. Run once with `dryRun: true` and compare the whole echoed body (not just the table) with the original before the real call.
 - `<time>` is re-rendered as a long date ("October 31, 2026").
-- Re-fetch afterwards and confirm.
+- Re-fetch both copies afterwards and confirm (Step 4).
 
 ---
 
 ## Wrapping an old plain header table in Page Properties (done 2026-10-31 on 12 DV drafts)
 
-Pages cloned from the Manual/Policy template before it gained the macro have a plain header `<table>` (use the `data-local-id` from your own fetch — on the 2026-10-31 batch it was `b24120e1-0142-4420-acd0-4401adc77d8f`, but don't assume it). To wrap one: fetch (html, `detail: "full"`), then a single `replaceNode` on the **table's own `data-local-id`** whose value is `<div data-type="bodied-extension" data-extension-key="details" data-extension-type="com.atlassian.confluence.macro.core" data-layout="default" data-parameters="{&quot;macroParams&quot;:{},&quot;macroMetadata&quot;:{&quot;schemaVersion&quot;:{&quot;value&quot;:&quot;1&quot;},&quot;title&quot;:&quot;Page Properties&quot;}}">` + the table copied verbatim + `</div>`; `dryRun` first, then the real call with `minorEdit: true`.
+Pages cloned from the Manual/Policy template before it gained the macro have a plain header `<table>` (use the `data-local-id` from your own fetch — on the 2026-10-31 batch it was `b24120e1-0142-4420-acd0-4401adc77d8f`, but don't assume it). To wrap one: fetch the draft (html, `detail: "full"`, `draft: true` — Step 2), then a single `replaceNode` on the **table's own `data-local-id`** whose value is `<div data-type="bodied-extension" data-extension-key="details" data-extension-type="com.atlassian.confluence.macro.core" data-layout="default" data-parameters="{&quot;macroParams&quot;:{},&quot;macroMetadata&quot;:{&quot;schemaVersion&quot;:{&quot;value&quot;:&quot;1&quot;},&quot;title&quot;:&quot;Page Properties&quot;}}">` + the table copied verbatim + `</div>`; `dryRun` first, then the real call with `minorEdit: true`.
 
 Lessons:
 - Copy `&nbsp;` as an entity — retyping it as a space silently changes the cell (caught in the dry-run echo three times).

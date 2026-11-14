@@ -20,9 +20,9 @@ Entry points:
 |---|---|
 | "commit and raise a PR" | Step 1 — Branch & commit |
 | "respond to review comments" / "address PR feedback" | Step 3 — Apply external feedback |
-| "review this PR" / "/pr-workflow review" | Step 2 — Review-fix loop (review pass only) |
+| "review this PR" / "/pr-workflow review" | Step 2, review only: get the PR's SHAs (`gh pr view <n> --json baseRefName,headRefOid,baseRefOid`), fetch them (`git fetch --prune origin pull/<n>/head <base>`), and review `headRefOid` against `git merge-base <baseRefOid> <headRefOid>` as the base. Run Step 2 steps 1–2 (static analysis at that exact SHA — see step 1 — then the wide review, given the actual PR body as claims to check) once — not Step 3, and no replies — report the findings, stop. No fix subagent, no commits, no push, no PR edits (report a missing Jira link instead); Step 4 only if asked |
 
-Never proceed from one step to the next without explicit instruction from the user. Exception: a single trigger like "commit and raise a PR" authorizes the whole Step 1 → 2 → 2b chain in one go — the "no proceeding without instruction" rule is about not starting a *new* step (e.g. Step 3, or a fresh commit) on your own initiative after a chain completes, not about pausing mid-chain.
+Never proceed from one step to the next without explicit instruction from the user. Exception: a single trigger like "commit and raise a PR" authorizes the whole Step 1 → 2 → 2b chain in one go. Inside that chain, Step 2's triage with the user (and any stop-rule pause) is the planned stop: once the user has answered, carry on to Step 2b without asking again. The "no proceeding without instruction" rule is about not starting a *new* step (e.g. Step 3, or a fresh commit) on your own initiative after a chain completes.
 
 Every PR body links its Jira issue — see the Jira link guardrail below.
 
@@ -30,7 +30,7 @@ Every PR body links its Jira issue — see the Jira link guardrail below.
 
 ## Step 1 — Branch & commit
 
-Local git (`status`, `diff`, `checkout`, `add`, `commit`) works fine inside the sandbox and can be chained. Only `gh` and `git push` need single bare calls — see the sandbox guardrail.
+Local git (`status`, `diff`, `checkout`, `add`, `commit`, `fetch`) works fine inside the sandbox and can be chained. Only `gh` and `git push` need single bare calls — see the sandbox guardrail.
 
 ```bash
 git status && git diff          # understand what's changed
@@ -49,88 +49,114 @@ Proceed immediately to Step 2.
 
 ## Step 2 — Review-fix loop (local only)
 
-Run up to 10 rounds.
+The loop is **one wide review, one triage with the user, narrow checks of the fixes, one final round** — see [references/loop-control.md](references/loop-control.md) for the setup (task ledger with defect classes and deployment facts, draft PR body, prompt files), the stop rules and the budget (2 full rounds per task: the wide review and the final). Every review prompt names the **base** and the HEAD SHA. `git fetch --prune` first, and give the base as a commit (`origin/<base>`), never a possibly stale local branch. For an existing PR, before any fixes (Step 1 or Step 3), check the local branch is at the PR's `headRefOid` (`gh pr view <number> --json baseRefName,baseRefOid,headRefOid`), record those, and take the base from it; just before pushing, query them again and check the base name, base OID and remote head are what you recorded. If any changed, rerun the loop.
 
-**Each round:**
+**Launching the reviewer.** Always the bundled agent — `subagent_type: "eastgen-plugin:pr-reviewer"`, never `general-purpose` — with **`isolation: "worktree"`**. It's a blank-slate agent ([agents/pr-reviewer.md](../../agents/pr-reviewer.md) — single source of truth for the review framework, don't restate it here) with the model already configured — don't pass `model` in the call. The isolated worktree is created from the default branch, so the prompt must name the HEAD SHA: the reviewer checks it out (`git checkout --detach <sha>`) before reviewing. Only **committed** work is visible to it — commit before every review round. Reports: findings table, clean/not-clean verdict, and the HEAD SHA it reviewed.
 
-1. **Fix subagent** — given the current findings (first round: none, so it reviews the local state from scratch); triages; applies fixes locally; commits (no push). Reports: what was fixed / explained / skipped, and the commit hash.
+**Steps:**
 
-2. **Review subagent — always the bundled `pr-reviewer` agent from this plugin, never `general-purpose`.** It's a blank-slate agent (`agents/pr-reviewer.md` in this plugin — single source of truth for the review framework, don't restate it here) with the model already configured — don't pass `model` in the call. Reports: findings table + clean/not-clean verdict.
+1. **Static analysis and sweeps** — run [references/static-analysis.md](references/static-analysis.md) on the changed files **at the SHA under review**, and paste the output (with that SHA and each exit status) into every review prompt. If the main checkout is not clean at that SHA (e.g. on the review-only path), don't check it out over the user's work: run the checks in a `general-purpose` subagent with `isolation: "worktree"` that first runs `git checkout --detach <sha>` and returns the raw output and exit statuses. Re-run this step for the fix commits in Step 3 too.
 
-   **Pass settled facts.** The reviewer has no memory of previous rounds, so without a `Known facts (do not re-investigate)` block listing what's already verified or deliberately decided — e.g. `"Django test runner creates data/ if absent — CI proves this"` — it re-raises the same triaged findings every round.
+2. **Wide review** — 2–3 `pr-reviewer` calls in parallel (one message, several Agent calls) on the first SHA (shards for a large PR). Merge, dedupe, and give each finding an ID and a defect class.
 
-3. If clean → exit loop and proceed to Step 2b. Otherwise repeat.
+   **What goes into the prompt.** The reviewer has no memory of previous rounds, so pass a `Known facts` block, or it re-raises the same triaged findings every round — but only for **decisions and environment facts** (e.g. `"Django test runner creates data/ if absent — CI proves this"`, `"X is deliberate because Y"`).
+   - Never list fix code as settled: write "Fixed since round N — verify the fix itself", and give the **original finding text**, not a description of what the fix does.
+   - Never give tool verdicts ("bandit clean", "tests pass") as a reason not to look. For outside facts the reviewer cannot check (API behaviour, docs, GitHub issues), paste the source excerpt or command output, not "verified".
+   - Outside a verification round, a "focus on X" note is a priority, never the scope: always add "and anything else in the full diff". Never write "pre-existing, so low severity" or "file Y is out of scope".
+   - List the changed docs (README, CHANGELOG, specs), and give the commit messages and the draft PR body (`<task>/pr-body.md`, see loop-control.md) as claims to check. If the work follows a plan file, give its path and say which parts are out of scope.
+   - Give the **usage context** of each part (production/unattended, CI or test harness, hand-run docs/scripts), the **deployment facts** with their evidence, and the release/process context (who builds, signs off, publishes), and the ledger's `Decided by user`, `Explained` and `Deferred to` lists.
 
-If still not clean after 10 rounds, stop and report the outstanding findings to the user instead of proceeding to Step 2b — never push or open a PR with unresolved 🔴/🟡 findings.
+3. **Triage with the user, once** — check each 🟡's reachability against the deployment facts, and ask the policy questions (loop-control.md §2). One table: fix / explain / defer. Unreachable triggers default to explain or defer.
+
+4. **Fix, then verify narrowly** — smallest fixes (the orchestrator makes small and docs fixes itself; never 🔵s), targeted tests, then a verification round scoped to the fix commits and their finding IDs (judge-only only for explanations or wording with no behavioural effect; skill, agent and other instruction files get full fix-commit verification — loop-control.md §3). Check the stop rules after every round: a repeat of a defect class, two rounds with no reachable in-purpose 🟡, a finding returning after a fix, or the budget — any of them means pause and ask the user. A valid finding outside the PR's purpose goes to a tracking issue (with the user's agreement) and is listed as `Deferred to <link>: <original finding text>`.
+
+5. **Final unscoped round** — once the agreed 🟡s are closed (and agreed 🔵s applied in one commit): a fresh full `pr-reviewer` call, with step 1 re-run at that SHA, no focus areas and no verification scope, but with the ledger's decisions, explanations and deferrals (shard it for a large PR; every shard must report the same base and SHA). It confirms rather than discovers: a new 🟡 blocks the push only if it is in the PR's purpose, reachable, and in production code (or would make a published result or release decision wrong), and not in an already-deferred class — a material security exposure (e.g. CI secrets reachable by PR code) blocks regardless, and so does a verdict that does not certify the SHA; everything else goes to the PR body and tracking issue under the after-triage policy, without pausing (loop-control.md §4). Blocking 🟡s are triaged, fixed and verified narrowly — there is no second full final. If the budget is spent, stop — do not push — and offer: ship with known limitations in the PR body, defer, or extend.
 
 **Step 2b — Push and open/update PR:**
 
-Resolve the Jira link (see Guardrails) before creating the PR.
+Resolve the Jira link and check the push gate (both in Guardrails) before pushing. `<task>/pr-body.md` (see loop-control.md → Setup) is the PR body: `## Summary`, deferrals, 🔵s not applied, test evidence, then
 
-Write the PR body to a file first (Write tool, e.g. `<scratchpad>/pr-body.md`). Throughout this skill, `<scratchpad>` means the session's scratchpad directory from the environment context (an absolute path), or `$TMPDIR` if there is none:
-
-```markdown
-## Summary
-- bullet
-
+```
+Local review: <N> rounds; final at <sha> (<k> non-blocking findings recorded); pushable SHA <sha>
 Jira: <issue-url>
-
-## Test plan
-- [ ] check
 ```
 
-Then run each of these as its **own** Bash call, from the repo's working directory (see the sandbox guardrail).
-
-First push (opens the PR):
+Then run each of these as its **own** Bash call, from the repo's working directory (see the sandbox guardrail). Every round pushes only the reviewed SHA:
 
 ```bash
-git push -u origin <branch-name>
-```
-```bash
-gh pr create --title "<70 chars>" --body-file <scratchpad>/pr-body.md
+git push origin <reviewed-sha>:refs/heads/<branch-name>
 ```
 
-Later rounds (the PR already exists, so only push):
+New PR only:
 
 ```bash
-git push
+git branch --set-upstream-to=origin/<branch-name>
 ```
-Print the PR URL. Stop — wait for explicit instruction before proceeding.
+```bash
+gh pr create --base <base> --head <branch-name> --title "<70 chars>" --body-file <task>/pr-body.md
+```
+
+Existing PR — no `gh pr create`; follow the PR-body guardrail (re-fetch and merge) first, then publish:
+
+```bash
+gh pr edit <number> --body-file <task>/pr-body.md
+```
+
+Then check `gh pr view <number> --json baseRefName,headRefOid` matches the reviewed base and SHA. Print the PR URL. If you came here from Step 3, go back and finish its replies, then stop. Otherwise stop — wait for explicit instruction before proceeding.
 
 ---
 
 ## Step 3 — Apply external feedback
 
-Triggered when a reviewer has posted comments on the open PR. Before anything else, check the PR carries its Jira link (see Guardrails). Then fetch all comments, apply fixes locally, then **re-run the full review-fix loop (Step 2)** before pushing.
+Before anything else, check the PR carries its Jira link (see Guardrails). Then fetch all comments, apply fixes locally, then **re-run the review-fix loop (Step 2)** before pushing.
 
-Fetch comments (two separate Bash calls):
+Fetch **all three**, each as its own bare Bash call, and read every body in full (no truncation, no filtering by author). `gh` fills in `{owner}`/`{repo}`; fill in `{pr_number}` yourself. If a fetch fails, stop.
+
 ```bash
-gh api repos/{owner}/{repo}/pulls/{pr_number}/comments
-gh api repos/{owner}/{repo}/issues/{pr_number}/comments
+gh api --paginate repos/{owner}/{repo}/pulls/{pr_number}/comments
+```
+```bash
+gh api --paginate repos/{owner}/{repo}/issues/{pr_number}/comments
+```
+```bash
+gh api --paginate repos/{owner}/{repo}/pulls/{pr_number}/reviews
 ```
 
-Triage each comment as **Fix**, **Explain**, or **Skip** (bot noise). Apply all fixes in one editing pass and commit locally (no push yet). Then run Step 2 loop. After the loop exits cleanly, push and reply to each actioned comment:
+CodeRabbit puts its "Nitpick comments", "Outside diff range comments" and "Duplicate comments" only in review bodies — triage every item there too.
 
+Triage each item as **Fix**, **Explain**, or **Skip**, with a reason. Apply all fixes in one editing pass and commit locally (no push yet). Then run Step 2 step 1 at the new SHA, and continue from step 3: triage with the user, fix, and verify narrowly with each original comment text as the finding (the task's ledger and verification budget carry over). That shortcut needs a ledger recording a completed wide review and final for this PR; without one, run the full Step 2 loop (loop-control.md §4, Later feedback). After the loop exits cleanly, push (Step 2b) and reply to every item, bot nitpicks included. If nothing is a Fix, skip the commit, loop and push, and just post the replies (plus any agreed deferral-ledger line in the PR body, published under the PR-body guardrail), without a `Local review:` line:
+
+- Never decline an item only by adding it to Known facts — it gets a reply.
+- Fix the risk, not the wording: if a comment pairs a mismatch with a risk, changing the docs to match the code is not a fix.
+- Before replying "Fixed", `git grep` for the same pattern across the repo and re-check every location the comment names. CodeRabbit's "✅ Addressed" is not proof.
+- If the code came from a template or a sibling repo, name the sibling repos with the same code in the reply, and ask the user whether to raise follow-ups.
+- Deferral ledger: every valid-but-deferred item, including "handled in stacked PR #N", gets a `Deferred to <link>: <original finding text>` line in the PR body (`<link>`: a tracking issue, or the stacked PR), carried into every later review prompt, and checked when that PR merges. In a PR stack, fix an issue in the PR that introduced it, not only downstream.
+- Re-fetch all three endpoints after every push, and again before reporting the PR as ready to merge. Triage anything new the same way (fixes go through the Step 2 loop); never report ready while an item is unanswered.
+
+Reply mechanics:
+
+- Each reply batch after a push states `Local review: <N> rounds; pushable SHA <sha>, verified narrowly` once (in the first reply or in the issue comment below).
+- Review-body items (nitpicks, outside-diff) and issue comments have no reply endpoint: answer them in one issue comment (`repos/{owner}/{repo}/issues/{pr_number}/comments`), one line per item, quoting or linking the item it answers.
 - Reply endpoint: `repos/{owner}/{repo}/pulls/{pr_number}/comments/{comment_id}/replies`
   ⚠️ Must include `{pr_number}` in path — omitting it returns HTTP 404.
-- Write `{"body": "<text>"}` to a JSON file (Write tool, or `json.dump` in a separate Python call), then `gh api repos/{owner}/{repo}/pulls/{pr_number}/comments/{comment_id}/replies --method POST --input <scratchpad>/reply.json` as a bare call — not `-f body=` (backticks and newlines break shell escaping), and not `--input -` from a pipe or heredoc (that keeps the call sandboxed).
+- Write `{"body": "<text>"}` to a JSON file (Write tool, or `json.dump` in a separate Python call), then `gh api repos/{owner}/{repo}/pulls/{pr_number}/comments/{comment_id}/replies --method POST --input <scratchpad>/reply.json` as a bare call — not `-f body=` (backticks and newlines break shell escaping), and not `--input -` from a pipe or heredoc (that keeps the call sandboxed). Same pattern for the issue comment. Throughout this skill, `<scratchpad>` means the session's scratchpad directory from the environment context (an absolute path), or `$TMPDIR` if there is none.
 - Fix reply: `"Fixed in \`{hash}\` — {one sentence}."`
 - Explain reply: concise reasoning, no apology.
 
-Single-user repos: same username appears as both author and reviewer. Treat 🔴/🟡/🔵-labelled comments as reviewer findings; treat `"Fixed in \`hash\`"` replies as already-actioned.
+Single-user repos: same username appears as both author and reviewer. Treat 🔴/🟡/🔵-labelled comments as reviewer findings; treat this workflow's own replies (`"Fixed in \`hash\`"`, Explain/Skip, the review-body issue comment) as answers, not new items.
 
 ---
 
 ## Step 4 — Post consolidated review to GitHub (optional)
 
-After loop exits and push is done, optionally post a single review:
+After the loop exits and push is done — or, on the review-only path, when the user asks — post a single review with the findings (Clean or not), against the SHA that was reviewed (`commit_id`); if the PR head has moved since, say so and ask before posting.
 
 Build the payload in Python and write it to a file — **don't** call `gh` from Python: a `python …` call doesn't match the sandbox's `gh *` exclusion, so `gh` would run sandboxed and fail authentication.
 
 ```python
 import json
 review = {
-    "commit_id": "{head_sha}",           # gh pr view {n} --json headRefOid
+    "commit_id": "{reviewed_sha}",       # the SHA pr-reviewer reported, not the current head
     "body": "**Code Review — {title}**\n\n{summary}\n\n**What's done well:** {positives}.",
     "event": "COMMENT",                  # never REQUEST_CHANGES — blocked on own PRs
     "comments": [{
@@ -150,6 +176,8 @@ Then, as its own Bash call:
 gh api repos/{owner}/{repo}/pulls/{pr_number}/reviews --method POST --input <scratchpad>/review.json
 ```
 
+Inline comments can only go on lines inside the PR's diff — GitHub rejects the whole review otherwise. Put any finding without a valid diff location (e.g. a sibling instance elsewhere in the repo) in the review `body` instead, with its `path:line`.
+
 Verify: `gh api repos/{owner}/{repo}/pulls/{pr_number}/reviews/{review_id}/comments --jq '.[] | "\(.path) line \(.line): \(.body[:60])"'`
 
 ---
@@ -158,8 +186,13 @@ Verify: `gh api repos/{owner}/{repo}/pulls/{pr_number}/reviews/{review_id}/comme
 
 - Never force-push or amend a pushed commit. Never use `--no-verify`.
 - Do not mark a PR ready-to-merge unless explicitly asked.
-- Loop: no `git push`, no GitHub API writes until the loop exits cleanly.
+- Loop: no `git push`, no GitHub API writes until the loop exits cleanly — except creating a tracking issue the user agreed to, the Jira-link PR body edit, Explain/Skip-only replies and their deferral-ledger body line (Step 3), and a review the user asked to post (Step 4).
+- **Push gate — push only what was reviewed.** Before any `git push` or `gh pr create`, `git rev-parse HEAD` must equal the **pushable SHA** (loop-control.md §4): the final round's SHA when it found nothing blocking, or the SHA of the Clean narrow verification that closed its blocking findings (or a Step 3 fix). Any later commit — applying 🔵s, a CHANGELOG tweak, a Step 3 fix — reopens the loop. This applies however the push comes about (another skill, another task, a subagent).
+- A push that changes `.github/workflows/` over HTTPS with the `gh` credential needs the `workflow` scope (classic OAuth token). If it is rejected for that, stop and ask the user to run `! gh auth refresh -h github.com -s workflow` themselves (it opens a browser).
+- If `pr-reviewer` cannot run (auth error, outage, no Bash tool, or it cannot check out the SHA), stop and tell the user. Never offer "push anyway", never substitute a `general-purpose` reviewer.
+- Docs, rollout and infrastructure-advice checks belong to the reviewer's `Docs & claims` dimension. The skill's job is to give it the sweeps, the plan path and the changed-docs list.
 - Inline comments: always `line` + `side` — never the legacy `position` field.
 - Review payload: always `--input <file>` — nested JSON arrays break with `--field`.
-- **Sandbox: run `gh` and `git push` as single, bare Bash calls.** The team's managed settings exclude only `gh *` and `git push *` from the sandbox, and an exclusion applies only when *every* part of the call matches. A `cd` first, chaining (`&&`, `;`, `|`), a redirect, a heredoc or pipe into stdin, `$(...)`, or calling `gh` from Python/a script all keep the call sandboxed — where `gh` can't reach the OS keyring, so it fails with "token … is invalid" / HTTP 401 and `git push` fails with "could not read Username". Run from the repo's working directory instead of `cd`-ing, pass bodies/payloads via `--body-file <file>` / `--input <file>`, and don't conclude that `gh`/`git push` can't work from the agent until a bare call has failed. (`git -C <dir> push` doesn't match `git push *` either.)
-- **Jira link, single source of truth for the whole skill** — every PR body carries a `Jira: <issue-url>` line. Resolve the issue key from the branch name if it follows `<KEY>-<n>-description` (e.g. `abc-123-fix-thing` → `ABC-123`); otherwise ask the user. Look it up via the bundled `atlassian` MCP server for the canonical URL — never guess the site domain. Check for it yourself in the main session — the `pr-reviewer` subagent is disk-only and never sees the PR body: `gh pr view <number> --json body --jq .body`. Check before `gh pr create` (Step 2b) and again as the first action of any "review this PR"/Step 3 entry, before the subagent loop starts; if missing, write the corrected body to a file and run `gh pr edit <number> --body-file <file>` to add it before proceeding.
+- **PR body — never publish a stale copy.** Whenever `<task>/pr-body.md` is (re)started from the PR's current body, save that fetched body as `<task>/pr-body.base.md`. If they're missing when you need to publish (e.g. Step 3's no-fix path, which skips Setup): `mkdir -p <task>` (defined in loop-control.md → Setup), then create only what's missing — if `pr-body.md` is missing, start it and the base from the current body; if only the base is missing, don't overwrite the draft: show the user the difference between the draft and the current body and ask how to merge. Immediately before **every** `gh pr edit --body-file <task>/pr-body.md` (Step 2b, Step 3's no-fix path, the Jira-link fix), re-fetch the current body (`gh pr view <number> --json body --jq .body`) and compare it with `pr-body.base.md`. If it changed, merge the GitHub-side edits into the draft — keeping the draft's ledger lines (`Deferred to …`, known limitations, `Local review:`) — or ask the user if they conflict, and save the new fetched body as the base. Then publish.
+- **Sandbox: run `gh` and `git push` as single, bare Bash calls.** The team's managed settings exclude only `gh *` and `git push *` from the sandbox, and an exclusion applies only when *every* part of the call matches. A `cd` first, chaining (`&&`, `;`, `|`), a redirect, a heredoc or pipe into stdin, `$(...)`, or calling `gh` from Python/a script all keep the call sandboxed — where `gh` can't reach the OS keyring, so it fails with "token … is invalid" / HTTP 401 and `git push` fails with "could not read Username". Run from the repo's working directory instead of `cd`-ing, pass bodies/payloads via `--body-file <file>` / `--input <file>`, and don't conclude that `gh`/`git push` can't work from the agent until a bare call has failed. (`git -C <dir> push` doesn't match `git push *` either.) `git fetch` is not excluded: it works sandboxed for public repos; if it fails with "could not read Username" on a private repo, ask the user to run it with `! git fetch …`.
+- **Jira link, single source of truth for the whole skill** — every PR body carries a `Jira: <issue-url>` line. Resolve the issue key from the branch name if it follows `<KEY>-<n>-description` (e.g. `abc-123-fix-thing` → `ABC-123`); otherwise ask the user. Look it up via the bundled `atlassian` MCP server for the canonical URL — never guess the site domain. Check for it yourself in the main session — the `pr-reviewer` subagent is disk-only and never sees the PR body: `gh pr view <number> --json body --jq .body`. Check before `gh pr create` (Step 2b) and again as the first action of any "review this PR"/Step 3 entry, before the subagent loop starts; if missing, add it to `<task>/pr-body.md` and publish under the PR-body guardrail before proceeding — except on the review-only path, which only reports it.
