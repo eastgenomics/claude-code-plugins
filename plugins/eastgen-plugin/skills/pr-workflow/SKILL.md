@@ -34,7 +34,7 @@ Local git (`status`, `diff`, `checkout`, `add`, `commit`) works fine inside the 
 
 ```bash
 git status && git diff          # understand what's changed
-git checkout -b <kebab-name>    # descriptive branch name
+git checkout -b <kebab-name>    # descriptive branch name; from a remote start point add --no-track (tracking writes .git/config, which the sandbox blocks)
 git add <specific files>        # never git add -A or git add .
 git commit -m "<type>: <imperative summary>
 

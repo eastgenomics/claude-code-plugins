@@ -15,8 +15,9 @@ to defer it; list it in the prompt as `Deferred to <link>: <check> not run/faili
 - They download from PyPI (`pypi.org`, `files.pythonhosted.org`) through the network proxy. If a download is refused, that is a check that could not run: report it to the user with the refused host. Don't skip the row.
 - Don't pipe a check into `tail`/`head` when recording its exit status: the pipe reports the status of `tail`, not of the check. Use `set -o pipefail`, or write the output to a file under `$TMPDIR` and read it.
 - **Checks the sandbox can't start** (e.g. `terraform validate`/`terraform test`, where the provider plugin fails to start). A green CI run at the **same SHA** counts as evidence for that check only, never for a check that ran here and failed. Paste the evidence into the prompt as `CI evidence at <sha>`, not as a reason not to look:
+  - find the run with `gh run list --commit <sha> --json databaseId,workflowName,event,conclusion`;
   - `gh run view <run-id> --json headSha,conclusion,event` with `headSha` equal to the reviewed SHA;
-  - the job that runs the check, passing (`gh run view <run-id> --json jobs --jq '.jobs[] | "\(.name): \(.conclusion)"'`).
+  - the job that runs the check, with conclusion `success`. A `skipped` job (e.g. path-filtered out) is no evidence. Check it with `gh run view <run-id> --json jobs --jq '.jobs[] | "\(.name): \(.conclusion)"'`.
   Each is a bare `gh` call. With no CI run at that exact SHA (e.g. on local fix commits), the check could not run: tell the user, or defer it as above.
 
 | Files | Command |

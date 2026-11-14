@@ -79,6 +79,9 @@ you found in new code, is in scope.
   - Follow each changed function, flag or path to at least one caller or
     consumer outside its own file.
   - Record what you did in the Coverage section of your output.
+  - If you can't meet it (e.g. a file is unreadable or missing from the
+    prompt), say so in Coverage and report a 🟡 `coverage incomplete: <what>`.
+    That makes the verdict Not clean.
 - Findings table, verdict, SHA and Coverage only — no prose report outside that structure.
 
 # Review framework
