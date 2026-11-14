@@ -76,8 +76,15 @@ you found in new code, is in scope.
     read its header and the entries the change touches, and say so.
   - Check every claim in the prompt's PR body, commit messages and changed
     docs that touches your scope against the code, with Read or `git grep`.
+    In a verification or judge-only round, each finding text in the prompt
+    counts as a claim. A claim that no code can establish (e.g. a reported
+    local test run or tool output) is not a gap: record it as
+    `not code-verifiable: <source you relied on>`. If no claims touch your
+    scope, write `no claims in scope`.
   - Follow each changed function, flag or path to at least one caller or
-    consumer outside its own file.
+    consumer outside its own file. If none exists (a private helper, an
+    auto-discovered test, an instruction file), record the search you ran
+    that shows none.
   - Record what you did in the Coverage section of your output.
   - If you can't meet it (e.g. a file is unreadable or missing from the
     prompt), say so in Coverage and report a 🟡 `coverage incomplete: <what>`.
@@ -155,5 +162,8 @@ Rules:
 3. The HEAD SHA you reviewed (`git rev-parse HEAD`).
 4. Coverage:
    - every file in your scope, marked `full` or `partial: <why>`;
-   - the claims you checked, each with its result (`holds` / `wrong: <finding ID>`) and the
-     command or file that showed it.
+   - the claims you checked, each with its result (`holds` / `wrong: <finding ID>` /
+     `not code-verifiable: <source>`) and the command or file that showed it, or
+     `no claims in scope`;
+   - the consumers you traced for changed functions, flags and paths, or the search that
+     showed none exists.

@@ -140,8 +140,13 @@ Constraints), and so must any post-final verification whose SHA would become the
 verdict that does not certify HEAD is never a non-blocking finding: fix the cause and rerun the
 round (a process failure, so it doesn't count against the budget). The same applies to shallow
 coverage. On **every** `pr-reviewer` result (wide, verification or final), check its `Coverage`
-section against its scope. If it didn't read every file in its scope, or checked no claims, the
-result can't be used: rerun that call. Uncertified and shallow reruns share one cap of two reruns
+section against its scope. The result can't be used, and you rerun that call, if any of these
+holds:
+- it didn't read every file in its scope;
+- it didn't account for the claims (each one checked or marked `not code-verifiable`, or
+  `no claims in scope` stated);
+- it didn't trace changed items to a consumer, or record the search showing none;
+- it reported `coverage incomplete`. Uncertified and shallow reruns share one cap of two reruns
 per round. If the second rerun is still uncertified or shallow, stop and tell the user.
 
 Every other new 🟡, and every 🔵, goes where the after-triage policy says (default: the PR body as
