@@ -87,9 +87,9 @@ After the update, re-fetch **both** the published version and the draft.
 
 - **Published:** confirm the change landed as intended, with the intended title — compare the whole body with the original, not just the edited span (the server can re-serialise other markup; see HTML_DIALECT.md → Update Mechanics). Not optional for anything involving an extension node: Confluence silently drops macros it can't resolve.
 - **Draft:** confirm it carries the same change (ignore the differences listed in Step 2).
-- **Touched text:** read each edited paragraph or cell back from the published page and check it says exactly what you intended. A merge with someone's concurrent typing can corrupt the paragraph by character position, with no warning. Also look elsewhere in the published body for text you didn't write: a publish takes anyone's unpublished typing live with it.
+- **Touched text:** read each edited paragraph or cell back from the published page and check it says exactly what you intended. A merge with someone's concurrent typing can corrupt the paragraph by character position, with no warning. Also compare the rest of the published body with the published version you fetched before the publish, and look for text that is new and outside your edits: a publish takes anyone's unpublished typing live with it.
 
-If the draft doesn't match the published version, or a touched paragraph doesn't read as intended, **stop and tell the user**. A draft mismatch means publishing from edit mode would revert the change. If the published body contains text you didn't write, **tell the user** what that text says: the publish made someone's unpublished typing live. Don't patch the draft separately — Atlassian advises against external changes to the draft object.
+If the draft doesn't match the published version, or a touched paragraph doesn't read as intended, **stop and tell the user**. A draft mismatch means publishing from edit mode would revert the change. If the published body contains such new text, **stop and tell the user**, quoting it: the publish made someone's unpublished typing live. Don't patch the draft separately — Atlassian advises against external changes to the draft object.
 
 When reporting, tell the user that both the published page and the edit-mode draft carry the change.
 
