@@ -55,7 +55,7 @@ Tools used by the Confluence skills:
 |---|---|---|
 | `getConfluenceContent` | primary | Fetch a page. Use `content_format: "html"` **and `detail: "full"`** (default `detail` is a cheap summary with no body). Returns `snapshotToken` and `data.body.value`. Accepts `content_id` or `content_url`. **Before editing an existing page, fetch with `draft: true`** (the edit-mode draft, token `d1:<n>`) — see HTML_DIALECT.md → Update Mechanics. |
 | `createConfluenceContent` | primary | Create a page: `parent: {spaceId, parentContentId}`, `contentType: "page"`, `title`, `body: {format:"html", value:"…"}` |
-| `updateConfluenceContent` | primary | Update a page: either `body: {format:"html", value}` (full replace) **or** `edits: [...]` (granular), plus the `snapshotToken` from the latest **draft** fetch. Omit `draft` to publish; `draft: true` only saves the draft. `dryRun: true` validates without saving. |
+| `updateConfluenceContent` | primary | Update a page: `edits: [...]` (granular — the default) **or** `body: {format:"html", value}` (full replace, only when edits can't express the change: a stale token is merged, not rejected — see HTML_DIALECT.md → Update Mechanics), plus the `snapshotToken` from the latest **draft** fetch. Omit `draft` to publish; `draft: true` only saves the draft. `dryRun: true` validates without saving. |
 | `searchConfluence` | primary | Find pages by title/text/label (CQL) |
 | `atlassianUserInfo` | primary | Current user's `accountId` (e.g. for the Mermaid macro) |
 | `getConfluenceContentDescendants` (`contentId`, `depth`) | `executeRead` | List child pages |
