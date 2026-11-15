@@ -60,7 +60,7 @@ Only write the edit once you've seen the actual draft body.
 updateConfluenceContent(cloudId: "cuhbioinformatics.atlassian.net", contentId: "<page_id>", snapshotToken: "<d1: token from the draft fetch>", title: "<title>", edits: [{"name":"replaceNode","arguments":{},"localId":"<data-local-id from the draft>","value":"<p>new text</p>"}])
 ```
 
-A granular edit with a stale token fails loudly. A full-body replace with a stale token is **merged, not rejected**, and an edit to the same paragraph a person is typing in can come out garbled with no warning (see HTML_DIALECT.md → Update Mechanics → Concurrent editing). So use a full-body replace only when the change can't be expressed as edits (e.g. a large section rewrite): change only the specific span of HTML, keep everything else byte-for-byte as fetched from the draft, and fetch and publish back to back:
+A granular edit with a stale token fails loudly. A full-body replace with a stale token is **merged, not rejected**, and an edit to the same paragraph a person is typing in can come out garbled with no warning (see HTML_DIALECT.md → Update Mechanics → Concurrent editing). So use a full-body replace only when the change can't be expressed as edits (e.g. a large section rewrite): change only the specific span of HTML, keep everything else byte-for-byte as fetched from the draft, and — after the comparison — make no other calls and leave no delay between the fresh draft fetch and the publish:
 
 ```
 updateConfluenceContent(cloudId: "cuhbioinformatics.atlassian.net", contentId: "<page_id>", snapshotToken: "<d1: token from the draft fetch>", title: "<title>", body: {format: "html", value: "<edited html>"})
@@ -69,7 +69,7 @@ updateConfluenceContent(cloudId: "cuhbioinformatics.atlassian.net", contentId: "
 `dryRun: true` previews the result of `edits`; for a `body` it only echoes your input. Pass the existing title unchanged unless the title itself is part of the edit.
 
 - `draft: true` on the update saves to the draft **without publishing** — use it only when the user asks for an unpublished change.
-- If a granular edit reports the token as missing, published-base or stale (`snapshot_stale`), go back to Step 2 — fetch both copies again, **repeat the comparison** (someone may have started typing: stop and ask if the draft now differs), and reapply the edit to the new draft body with its new token; don't resend the same payload. If it is stale twice in a row, stop and tell the user — someone is actively editing the page.
+- If a granular edit reports the token as stale (`snapshot_stale`) or missing, go back to Step 2 — fetch both copies again, **repeat the comparison** (someone may have started typing: stop and ask if the draft now differs), and reapply the edit to the new draft body with its new token; don't resend the same payload. If it is stale twice in a row, stop and tell the user — someone is actively editing the page. A published-version token (`v:<n>`) is accepted rather than flagged (Step 4 table), so nothing will warn you if you use one: never do.
 - The same applies to a second edit in the same task: every publish attempt starts from a fresh Step 2, never from a token returned by an earlier update.
 
 **Safety rules:**
@@ -87,7 +87,7 @@ After the update, re-fetch **both** the published version and the draft.
 
 - **Published:** confirm the change landed as intended, with the intended title — compare the whole body with the original, not just the edited span (the server can re-serialise other markup; see HTML_DIALECT.md → Update Mechanics). Not optional for anything involving an extension node: Confluence silently drops macros it can't resolve.
 - **Draft:** confirm it carries the same change (ignore the differences listed in Step 2).
-- **Touched text:** read each edited paragraph or cell back from the published page and check it says exactly what you intended. A merge with someone's concurrent typing can corrupt the paragraph by character position, with no warning.
+- **Touched text:** read each edited paragraph or cell back from the published page and check it says exactly what you intended. A merge with someone's concurrent typing can corrupt the paragraph by character position, with no warning. Also look elsewhere in the published body for text you didn't write: a publish takes anyone's unpublished typing live with it.
 
 If the draft doesn't match the published version, or a touched paragraph doesn't read as intended, **stop and tell the user**. A draft mismatch means publishing from edit mode would revert the change. Don't patch the draft separately — Atlassian advises against external changes to the draft object.
 
@@ -117,6 +117,8 @@ The person saw no flicker, cursor jump or banner; the API's text just appeared.
 ---
 
 ## Common Update Scenarios
+
+These recipes say *what* to change. Express them as granular edits (`replaceNode` on the `<p>` inside a cell, `insertNodeAfter` a row or heading, `appendNodeToEnd`), and use a full-body replace only for a large rewrite that edits can't express (Step 3).
 
 ### Sign-off: update the controlled document header
 
